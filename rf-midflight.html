@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mid-Flight Reach & Frequency Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface2: #f9f9fb;
+    --border: #e2e2e7;
+    --accent: #1d4ed8;
+    --accent-light: #eff6ff;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --amber: #b45309;
+    --amber-bg: #fffbeb;
+    --amber-border: #fcd34d;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --meta: #1877f2;
+    --yt:   #ff0000;
+    --ctv:  #0891b2;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; font-size: 14px; line-height: 1.5;
+  }
+
+  .app { display: flex; min-height: 100vh; }
+
+  /* ── Sidebar ─────────────────────────── */
+  .sidebar {
+    width: 340px; flex-shrink: 0;
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 24px 20px 60px; overflow-y: auto;
+    position: sticky; top: 0; height: 100vh;
+  }
+
+  .sidebar-title {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase; color: var(--text-muted); margin-bottom: 20px;
+  }
+
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+    text-transform: uppercase; color: var(--text-muted);
+    margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--text-muted); margin-bottom: 4px;
+  }
+  .field-label-row {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
+  }
+  .field-label-row label { margin-bottom: 0; }
+
+  input[type="text"], input[type="number"], select {
+    width: 100%; padding: 7px 10px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; color: var(--text); background: var(--surface);
+    transition: border-color 0.15s; -webkit-appearance: none;
+  }
+  input:focus, select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(29,78,216,0.1);
+  }
+  .hint { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  /* Lookup link */
+  .lookup-link {
+    font-size: 11px; color: var(--accent); cursor: pointer;
+    text-decoration: none; font-weight: 500;
+    display: flex; align-items: center; gap: 3px;
+  }
+  .lookup-link:hover { text-decoration: underline; }
+
+  /* Lookup panel */
+  .lookup-panel {
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; margin-top: 6px;
+  }
+  .lookup-panel-head {
+    padding: 10px 12px; background: var(--accent-light);
+    border-bottom: 1px solid #bfdbfe;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .lookup-panel-head span {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+  }
+  .lookup-close {
+    font-size: 16px; color: var(--accent); cursor: pointer;
+    line-height: 1; opacity: 0.7;
+  }
+  .lookup-close:hover { opacity: 1; }
+  .lookup-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .lookup-body .field { margin-bottom: 0; }
+  .lookup-body label { font-size: 11px; }
+
+  .lookup-result {
+    padding: 8px 10px; border-radius: 6px; font-size: 12px;
+    background: var(--green-light); border: 1px solid #bbf7d0;
+    color: var(--green); font-weight: 500;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .use-btn {
+    padding: 4px 10px; border-radius: 5px; border: none;
+    background: var(--green); color: white; font-size: 11px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  .use-btn:hover { background: #15803d; }
+  .lookup-loading { font-size: 12px; color: var(--text-muted); padding: 6px 0; }
+  .lookup-error { font-size: 12px; color: #dc2626; padding: 6px 0; }
+
+  /* Platform rows */
+  .platform-row {
+    border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 10px; overflow: hidden;
+  }
+  .platform-row.disabled { opacity: 0.4; }
+  .platform-row-header { padding: 9px 12px; display: flex; align-items: center; gap: 8px; }
+  .pip { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .platform-name-static { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .toggle-switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
+  .toggle-switch input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0; background: #d1d5db;
+    border-radius: 9px; cursor: pointer; transition: background 0.2s;
+  }
+  .toggle-track::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; background: white; border-radius: 50%;
+    transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .toggle-switch input:checked + .toggle-track { background: var(--accent); }
+  .toggle-switch input:checked + .toggle-track::after { transform: translateX(16px); }
+
+  .platform-row-fields {
+    padding: 10px 12px 12px; background: var(--surface2);
+    border-top: 1px solid var(--border);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .platform-row-fields .field { margin-bottom: 0; }
+  .platform-row-fields label { font-size: 11px; }
+
+  /* CTV rows */
+  .ctv-row { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .ctv-row-header { padding: 9px 12px; display: flex; align-items: center; gap: 8px; background: var(--surface); }
+  .ctv-name-input {
+    flex: 1; border: none; background: transparent;
+    font-size: 13px; font-weight: 600; color: var(--text);
+    padding: 0; outline: none; min-width: 0;
+  }
+  .ctv-name-input::placeholder { color: var(--text-muted); font-weight: 400; }
+  .remove-btn {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1; flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .remove-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+  .ctv-row-fields {
+    padding: 10px 12px 12px; background: var(--surface2);
+    border-top: 1px solid var(--border);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .ctv-row-fields .field { margin-bottom: 0; }
+  .ctv-row-fields label { font-size: 11px; }
+
+  .add-ctv-btn {
+    width: 100%; padding: 8px 12px; margin-top: 4px;
+    border: 1.5px dashed var(--border); border-radius: 8px;
+    background: transparent; color: var(--text-muted);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .add-ctv-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  .caps-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  /* ── Main / Report ─────────────────────── */
+  .main { flex: 1; padding: 28px 28px 60px; overflow-y: auto; }
+
+  .report-header { margin-bottom: 24px; }
+  .report-header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .report-meta { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); }
+  .stat-sub   { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .card-head {
+    padding: 13px 18px; border-bottom: 1px solid var(--border);
+    background: var(--surface2); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.3px; text-transform: uppercase; color: var(--text-muted);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: 9px 16px; text-align: left;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px;
+    color: var(--text-muted); font-weight: 600;
+    border-bottom: 1px solid var(--border); background: var(--surface2); white-space: nowrap;
+  }
+  th:not(:first-child) { text-align: right; }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  tr.total-row td { font-weight: 700; background: var(--accent-light); color: var(--accent); }
+
+  .platform-pill { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+  }
+  .badge-warn { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+  .badge-ok   { background: var(--green-light); color: var(--green); border: 1px solid #bbf7d0; }
+
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; min-width: 50px; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+  .adj-note { font-size: 11px; color: var(--amber); margin-top: 2px; }
+
+  .info-box { border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; font-size: 12px; line-height: 1.6; }
+  .info-box.blue  { background: var(--accent-light); border: 1px solid #bfdbfe; color: #1e40af; }
+  .info-box.amber { background: var(--amber-bg); border: 1px solid var(--amber-border); color: var(--amber); }
+  .info-box strong { font-weight: 600; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; }
+
+  @media print { .sidebar { display: none; } .main { padding: 20px; } }
+  @media (max-width: 700px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; }
+    .summary-grid { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<div class="sidebar">
+  <div class="sidebar-title">Campaign Inputs</div>
+
+  <div class="section-label">Campaign Info</div>
+
+  <div class="field">
+    <label>Campaign / Client Name</label>
+    <input type="text" id="campaignName" placeholder="e.g. Smith for Senate" oninput="calculate()" />
+  </div>
+
+  <div class="field">
+    <label>Geo</label>
+    <input type="text" id="geoLabel" placeholder="e.g. NY-10 Congressional District" oninput="calculate()" />
+  </div>
+
+  <!-- Universe with lookup -->
+  <div class="field">
+    <div class="field-label-row">
+      <label>Target Universe (adults 18+)</label>
+      <a class="lookup-link" onclick="openGlobalLookup()" id="lookupToggleLink">⊕ Look up district</a>
+    </div>
+
+    <!-- Lookup panel -->
+    <div id="lookupPanel" style="display:none; margin-bottom:8px;">
+      <div class="lookup-panel">
+        <div class="lookup-panel-head">
+          <span id="lookupTargetLabel">Census District Lookup</span>
+          <span class="lookup-close" onclick="toggleLookup()">×</span>
+        </div>
+        <div class="lookup-body">
+          <div class="field">
+            <label>Age Group</label>
+            <select id="ageFilter" onchange="onAgeFilterChange()">
+              <option value="18">Adults 18+</option>
+              <option value="25">Adults 25+</option>
+              <option value="30">Adults 30+</option>
+              <option value="35">Adults 35+</option>
+              <option value="45">Adults 45+</option>
+              <option value="55">Adults 55+</option>
+              <option value="65">Adults 65+</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>District Type</label>
+            <select id="geoType" onchange="onGeoTypeChange()">
+              <option value="state">Statewide</option>
+              <option value="cd">Congressional District</option>
+              <option value="sldu">State Senate District</option>
+              <option value="sldl">State Assembly / House District</option>
+              <option value="zip">ZIP Code List</option>
+            </select>
+          </div>
+          <div id="stateFieldWrap">
+            <div class="field">
+              <label>State</label>
+              <select id="stateSelect" onchange="onStateChange()">
+                <option value="">— Select state —</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" id="districtFieldWrap" style="display:none;">
+            <label id="districtLabel">District</label>
+            <select id="districtSelect" onchange="onDistrictChange()">
+              <option value="">— Select district —</option>
+            </select>
+          </div>
+          <div class="field" id="zipFieldWrap" style="display:none;">
+            <label>ZIP Codes (one per line)</label>
+            <textarea id="zipInput" rows="6"
+              placeholder="10001&#10;10002&#10;10003"
+              oninput="onZipInput()"
+              style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+          </div>
+          <div id="lookupStatus"></div>
+          <div id="lookupResult" style="display:none;" class="lookup-result">
+            <span id="lookupResultText"></span>
+            <button class="use-btn" onclick="applyLookup()">Use this</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <input type="number" id="universe" placeholder="e.g. 720000" oninput="calculate()" />
+    <div class="hint">Adults 18+ in the target geography</div>
+  </div>
+
+  <div class="field">
+    <label>Report Date</label>
+    <input type="text" id="reportDate" placeholder="e.g. July 1, 2026" oninput="calculate()" />
+  </div>
+
+  <div class="section-label">Platform Results</div>
+
+  <!-- Meta -->
+  <div class="platform-row" id="row-meta">
+    <div class="platform-row-header">
+      <span class="pip" style="background:var(--meta)"></span>
+      <span class="platform-name-static">Meta</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="active-meta" checked onchange="toggleFixed('meta')">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <div class="platform-row-fields" id="fields-meta">
+      <div class="field">
+        <label>Reported Reach</label>
+        <input type="number" id="reach-meta" placeholder="unique users" oninput="calculate()" />
+      </div>
+      <div class="field">
+        <label>Impressions</label>
+        <input type="number" id="imps-meta" placeholder="total served" oninput="calculate()" />
+      </div>
+      <div class="field">
+        <label>Penetration Cap (%)</label>
+        <input type="number" id="pen-meta" value="65" min="1" max="100" oninput="calculate()" />
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <div class="field-label-row">
+          <label>Audience Size (optional)</label>
+          <a class="lookup-link" onclick="openRowLookup('aud-meta','Meta')">⊕ Look up</a>
+        </div>
+        <input type="number" id="aud-meta" placeholder="↳ uses global universe" oninput="calculate()" />
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube -->
+  <div class="platform-row" id="row-yt">
+    <div class="platform-row-header">
+      <span class="pip" style="background:var(--yt)"></span>
+      <span class="platform-name-static">YouTube</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="active-yt" checked onchange="toggleFixed('yt')">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <div class="platform-row-fields" id="fields-yt">
+      <div class="field">
+        <label>Reported Reach</label>
+        <input type="number" id="reach-yt" placeholder="unique users" oninput="calculate()" />
+      </div>
+      <div class="field">
+        <label>Impressions</label>
+        <input type="number" id="imps-yt" placeholder="total served" oninput="calculate()" />
+      </div>
+      <div class="field">
+        <label>Penetration Cap (%)</label>
+        <input type="number" id="pen-yt" value="75" min="1" max="100" oninput="calculate()" />
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <div class="field-label-row">
+          <label>Audience Size (optional)</label>
+          <a class="lookup-link" onclick="openRowLookup('aud-yt','YouTube')">⊕ Look up</a>
+        </div>
+        <input type="number" id="aud-yt" placeholder="↳ uses global universe" oninput="calculate()" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic CTV/DSP rows -->
+  <div id="ctvRows"></div>
+  <button class="add-ctv-btn" onclick="addCtvRow()">
+    <span style="font-size:16px;line-height:1">+</span> Add CTV / DSP Platform
+  </button>
+
+  <div class="section-label">Deduplication</div>
+  <div class="field">
+    <label>Audience Overlap Assumption</label>
+    <select id="overlap" onchange="calculate()">
+      <option value="low">Low — more independent audiences</option>
+      <option value="medium" selected>Medium — typical campaign mix</option>
+      <option value="high">High — narrow / overlapping audiences</option>
+    </select>
+  </div>
+
+  <div class="field" id="audOverlapWrap" style="display:none">
+    <label>Cross-Audience Overlap Estimate</label>
+    <input type="number" id="audOverlap" value="30" min="0" max="100" oninput="calculate()" />
+    <div class="hint" style="margin-top:4px">
+      Your best guess at how much these different audiences (e.g. age demo vs. matched list) overlap with each other.
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<div class="main" id="mainPanel">
+  <div class="empty">Enter campaign details in the sidebar to generate a report.</div>
+</div>
+
+</div>
+
+<script>
+// ── Census lookup data ────────────────────────────────────────
+
+const STATES = [
+  ['Alabama','01','AL'],['Alaska','02','AK'],['Arizona','04','AZ'],['Arkansas','05','AR'],
+  ['California','06','CA'],['Colorado','08','CO'],['Connecticut','09','CT'],['Delaware','10','DE'],
+  ['District of Columbia','11','DC'],['Florida','12','FL'],['Georgia','13','GA'],['Hawaii','15','HI'],
+  ['Idaho','16','ID'],['Illinois','17','IL'],['Indiana','18','IN'],['Iowa','19','IA'],
+  ['Kansas','20','KS'],['Kentucky','21','KY'],['Louisiana','22','LA'],['Maine','23','ME'],
+  ['Maryland','24','MD'],['Massachusetts','25','MA'],['Michigan','26','MI'],['Minnesota','27','MN'],
+  ['Mississippi','28','MS'],['Missouri','29','MO'],['Montana','30','MT'],['Nebraska','31','NE'],
+  ['Nevada','32','NV'],['New Hampshire','33','NH'],['New Jersey','34','NJ'],['New Mexico','35','NM'],
+  ['New York','36','NY'],['North Carolina','37','NC'],['North Dakota','38','ND'],['Ohio','39','OH'],
+  ['Oklahoma','40','OK'],['Oregon','41','OR'],['Pennsylvania','42','PA'],['Rhode Island','44','RI'],
+  ['South Carolina','45','SC'],['South Dakota','46','SD'],['Tennessee','47','TN'],['Texas','48','TX'],
+  ['Utah','49','UT'],['Vermont','50','VT'],['Virginia','51','VA'],['Washington','53','WA'],
+  ['West Virginia','54','WV'],['Wisconsin','55','WI'],['Wyoming','56','WY']
+];
+
+// Geo type → Census API geography string and label (unencoded — URLSearchParams handles encoding)
+const GEO_CONFIG = {
+  state: { param: 'state',                                        label: 'Statewide',                 abbr: ''   },
+  cd:    { param: 'congressional district',                       label: 'Congressional District',    abbr: 'CD' },
+  sldu:  { param: 'state legislative district (upper chamber)',   label: 'State Senate District',     abbr: 'SD' },
+  sldl:  { param: 'state legislative district (lower chamber)',   label: 'State Assembly District',   abbr: 'AD' },
+};
+
+// ACS 5-year adult age-group variables
+// Male 18+ groups: B01001_007E (18-19) … B01001_025E (85+) — 19 groups
+// Female 18+ groups: B01001_031E (18-19) … B01001_049E (85+) — 19 groups
+const MALE_AGE_VARS   = Array.from({length:19}, (_,i) => `B01001_${String(i+7).padStart(3,'0')}E`);
+const FEMALE_AGE_VARS = Array.from({length:19}, (_,i) => `B01001_${String(i+31).padStart(3,'0')}E`);
+const ADULT_VARS      = [...MALE_AGE_VARS, ...FEMALE_AGE_VARS].join(',');
+
+// Age cutoff → start index within the 19-group arrays
+// [0]18-19 [1]20 [2]21 [3]22-24 [4]25-29 [5]30-34 [6]35-39 [7]40-44
+// [8]45-49 [9]50-54 [10]55-59 [11]60-61 [12]62-64 [13]65-66 … [18]85+
+const AGE_CUTOFFS = { 18:0, 25:4, 30:5, 35:6, 45:8, 55:10, 65:13 };
+
+function sumAdults(male, female, minAge) {
+  const start = AGE_CUTOFFS[minAge] ?? 0;
+  let n = 0;
+  for (let i = start; i < 19; i++) n += (male[i]||0) + (female[i]||0);
+  return n;
+}
+
+function parseAgeGroups(row, offset) {
+  // row[offset..offset+18] = 19 male values, row[offset+19..offset+37] = 19 female values
+  return {
+    male:   row.slice(offset,      offset+19).map(Number),
+    female: row.slice(offset+19,   offset+38).map(Number),
+  };
+}
+
+function getAgeFilter() {
+  return parseInt(document.getElementById('ageFilter').value) || 18;
+}
+
+let pendingLookup = null; // { male, female, geoStr, fullName }
+let lookupTarget  = null; // null = global universe field; else an input id (e.g. 'aud-meta')
+let lookupOpen    = false;
+
+// ── Census API key ────────────────────────────────────────────
+function getApiKey() {
+  return 'e054a1213d955edbfd2c110eb0211ca88cd2557c';
+}
+
+// ── Populate state dropdown ───────────────────────────────────
+(function initStates() {
+  const sel = document.getElementById('stateSelect');
+  STATES.forEach(([name]) => {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  });
+})();
+
+// ── Lookup panel toggle ───────────────────────────────────────
+function toggleLookup() {
+  lookupOpen = !lookupOpen;
+  document.getElementById('lookupPanel').style.display = lookupOpen ? '' : 'none';
+  document.getElementById('lookupToggleLink').textContent = lookupOpen ? '⊖ Close lookup' : '⊕ Look up district';
+  if (!lookupOpen) { lookupTarget = null; document.getElementById('lookupTargetLabel').textContent = 'Census District Lookup'; }
+}
+
+function openRowLookup(targetId, label) {
+  lookupTarget = targetId;
+  document.getElementById('lookupTargetLabel').textContent = `Census Lookup — for ${label} audience`;
+  if (!lookupOpen) toggleLookup();
+  document.getElementById('lookupPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function openGlobalLookup() {
+  if (lookupOpen && lookupTarget === null) { toggleLookup(); return; } // already open in global mode → toggle closed
+  lookupTarget = null;
+  document.getElementById('lookupTargetLabel').textContent = 'Census District Lookup';
+  if (!lookupOpen) toggleLookup();
+}
+
+function onGeoTypeChange() {
+  resetDistricts();
+  const geoType = document.getElementById('geoType').value;
+  const isZip   = geoType === 'zip';
+  document.getElementById('stateFieldWrap').style.display  = isZip ? 'none' : '';
+  document.getElementById('zipFieldWrap').style.display    = isZip ? '' : 'none';
+  if (!isZip) {
+    const cfg = GEO_CONFIG[geoType];
+    document.getElementById('districtLabel').textContent = cfg.label;
+    const state = document.getElementById('stateSelect').value;
+    if (!state) return;
+    if (geoType === 'state') loadStatewide(state);
+    else loadDistricts(state);
+  }
+}
+
+function onStateChange() {
+  resetDistricts();
+  const state = document.getElementById('stateSelect').value;
+  if (!state) return;
+  const geoType = document.getElementById('geoType').value;
+  if (geoType === 'state') loadStatewide(state);
+  else loadDistricts(state);
+}
+
+function resetDistricts() {
+  document.getElementById('districtFieldWrap').style.display = 'none';
+  document.getElementById('districtSelect').innerHTML = '<option value="">— Select district —</option>';
+  document.getElementById('lookupResult').style.display = 'none';
+  document.getElementById('lookupStatus').innerHTML = '';
+  pendingLookup = null;
+  clearTimeout(zipDebounce);
+}
+
+// ── ZIP lookup ────────────────────────────────────────────────
+let zipDebounce = null;
+
+function onZipInput() {
+  clearTimeout(zipDebounce);
+  document.getElementById('lookupResult').style.display = 'none';
+  document.getElementById('lookupStatus').innerHTML = '';
+  zipDebounce = setTimeout(fetchZipPopulation, 600);
+}
+
+async function fetchZipPopulation() {
+  const raw  = document.getElementById('zipInput').value;
+  const zips = [...new Set(
+    raw.split(/[\n,\s]+/).map(z => z.trim().replace(/\D/g,'')).filter(z => z.length === 5)
+  )];
+
+  if (zips.length === 0) return;
+  document.getElementById('lookupStatus').innerHTML =
+    `<div class="lookup-loading">Looking up ${zips.length} ZIP code${zips.length>1?'s':''}…</div>`;
+
+  // Batch into chunks of 50 to stay within URL limits
+  const CHUNK = 50;
+  const chunks = [];
+  for (let i = 0; i < zips.length; i += CHUNK) chunks.push(zips.slice(i, i + CHUNK));
+
+  try {
+    const sumMale   = new Array(19).fill(0);
+    const sumFemale = new Array(19).fill(0);
+    let matched = 0;
+    for (const chunk of chunks) {
+      const params = new URLSearchParams({
+        get: ADULT_VARS,
+        for: `zip code tabulation area:${chunk.join(',')}`,
+        key: getApiKey(),
+      });
+      const res  = await fetch(`https://api.census.gov/data/2022/acs/acs5?${params}`);
+      if (!res.ok) throw new Error(`Census API status ${res.status}`);
+      const data = await res.json();
+      for (const row of data.slice(1)) {
+        const { male, female } = parseAgeGroups(row, 0); // no NAME prefix in ZIP response
+        male.forEach((v,i)   => sumMale[i]   += v);
+        female.forEach((v,i) => sumFemale[i] += v);
+        matched++;
+      }
+    }
+
+    const missed = zips.length - matched;
+    pendingLookup = {
+      male:     sumMale,
+      female:   sumFemale,
+      fullName: `ZIP list (${matched} ZIP${matched>1?'s':''})`,
+    };
+    showLookupResult();
+    if (missed > 0) {
+      document.getElementById('lookupResultText').textContent +=
+        ` · ${missed} not found`;
+    }
+  } catch(e) {
+    document.getElementById('lookupStatus').innerHTML =
+      `<div class="lookup-error">Could not load ZIP data: ${e.message}</div>`;
+  }
+}
+
+async function loadStatewide(stateName) {
+  const stateRow = STATES.find(s => s[0] === stateName);
+  if (!stateRow) return;
+  const [, fips, abbr] = stateRow;
+
+  document.getElementById('lookupStatus').innerHTML =
+    `<div class="lookup-loading">Loading statewide population…</div>`;
+
+  try {
+    const params = new URLSearchParams({
+      get: `NAME,${ADULT_VARS}`,
+      for: `state:${fips}`,
+      key: getApiKey(),
+    });
+    const res  = await fetch(`https://api.census.gov/data/2022/acs/acs5?${params}`);
+    if (!res.ok) throw new Error(`Census API responded with status ${res.status}`);
+    const data = await res.json();
+    const row  = data[1];
+    const name = row[0];
+    const { male, female } = parseAgeGroups(row, 1); // offset 1 because NAME is first
+
+    pendingLookup = { male, female, geoStr: abbr, fullName: name };
+    showLookupResult();
+  } catch (e) {
+    document.getElementById('lookupStatus').innerHTML =
+      `<div class="lookup-error">Could not load state data: ${e.message}</div>`;
+  }
+}
+
+async function loadDistricts(stateName) {
+  const stateRow = STATES.find(s => s[0] === stateName);
+  if (!stateRow) return;
+  const [, fips, abbr] = stateRow;
+  const geoType = document.getElementById('geoType').value;
+  const cfg     = GEO_CONFIG[geoType];
+
+  document.getElementById('lookupStatus').innerHTML =
+    `<div class="lookup-loading">Loading ${cfg.label.toLowerCase()}s…</div>`;
+
+  try {
+    const params = new URLSearchParams({
+      get: `NAME,${ADULT_VARS}`,
+      for: `${cfg.param}:*`,
+      in:  `state:${fips}`,
+      key: getApiKey(),
+    });
+    const url = `https://api.census.gov/data/2022/acs/acs5?${params}`;
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error(`Census API responded with status ${res.status} — check that your API key is valid`);
+    const data = await res.json();
+
+    // data[0] = headers, data[1..] = rows; NAME is col 0, age vars start at col 1
+    const rows = data.slice(1).map(row => {
+      const name = row[0];
+      const code = row[row.length - 1];
+      const { male, female } = parseAgeGroups(row, 1);
+      return { name, male, female, code };
+    });
+
+    // Sort by district code numerically
+    rows.sort((a,b) => +a.code - +b.code);
+
+    const sel = document.getElementById('districtSelect');
+    sel.innerHTML = '<option value="">— Select district —</option>';
+    rows.forEach(r => {
+      const o = document.createElement('option');
+      o.value       = JSON.stringify({ male: r.male, female: r.female, name: r.name, code: r.code, abbr, geoType });
+      o.textContent = formatDistrictName(r.name, r.code, geoType);
+      sel.appendChild(o);
+    });
+
+    document.getElementById('districtFieldWrap').style.display = '';
+    document.getElementById('lookupStatus').innerHTML = '';
+  } catch (e) {
+    document.getElementById('lookupStatus').innerHTML =
+      `<div class="lookup-error">Could not load districts: ${e.message}</div>`;
+  }
+}
+
+function formatDistrictName(rawName, code, geoType) {
+  // Census returns e.g. "Congressional District 10, New York"
+  // or "State Senate District 31, California"
+  // Extract just a clean short label
+  const num = parseInt(code, 10);
+  if (geoType === 'cd') return isNaN(num) ? rawName : `District ${num}`;
+  // For state legislative, keep a bit more context
+  const parts = rawName.split(',');
+  return parts[0].trim();
+}
+
+function onDistrictChange() {
+  const val = document.getElementById('districtSelect').value;
+  if (!val) { pendingLookup = null; document.getElementById('lookupResult').style.display = 'none'; return; }
+
+  const { male, female, name, code, abbr, geoType } = JSON.parse(val);
+  const num    = parseInt(code, 10);
+  const geoStr = geoType === 'cd'
+    ? `${abbr}-${num}`
+    : `${abbr} ${num}, ${name.split(',')[1]?.trim() || ''}`;
+
+  pendingLookup = { male, female, geoStr, fullName: name };
+  showLookupResult();
+}
+
+function showLookupResult() {
+  if (!pendingLookup) return;
+  const minAge = getAgeFilter();
+  const adults = sumAdults(pendingLookup.male, pendingLookup.female, minAge);
+  const base   = pendingLookup.fullName.split(',')[0];
+  document.getElementById('lookupResultText').textContent =
+    `${base}: ${adults.toLocaleString()} adults ${minAge}+`;
+  document.getElementById('lookupResult').style.display = '';
+  document.getElementById('lookupStatus').innerHTML = '';
+}
+
+function onAgeFilterChange() {
+  showLookupResult();
+}
+
+function applyLookup() {
+  if (!pendingLookup) return;
+  const minAge = getAgeFilter();
+  const adults = sumAdults(pendingLookup.male, pendingLookup.female, minAge);
+  if (lookupTarget) {
+    document.getElementById(lookupTarget).value = adults;
+  } else {
+    document.getElementById('universe').value = adults;
+    document.getElementById('geoLabel').value = pendingLookup.fullName;
+  }
+  toggleLookup();
+  calculate();
+}
+
+// ── Fixed platform toggles ────────────────────────────────────
+function toggleFixed(p) {
+  const active = document.getElementById(`active-${p}`).checked;
+  document.getElementById(`row-${p}`).classList.toggle('disabled', !active);
+  document.getElementById(`fields-${p}`).style.display = active ? '' : 'none';
+  calculate();
+}
+
+// ── Dynamic CTV rows ──────────────────────────────────────────
+const CTV_COLORS = ['#0891b2','#7c3aed','#059669','#ea580c','#9333ea','#0369a1'];
+let ctvCounter = 0;
+const ctvRows  = [];
+
+function addCtvRow(name = '') {
+  const id    = ++ctvCounter;
+  const color = CTV_COLORS[(id - 1) % CTV_COLORS.length];
+  ctvRows.push({ id, color });
+  const div = document.createElement('div');
+  div.className = 'ctv-row'; div.id = `ctv-row-${id}`;
+  div.innerHTML = `
+    <div class="ctv-row-header">
+      <span class="pip" style="background:${color}"></span>
+      <input class="ctv-name-input" id="ctv-name-${id}" placeholder="e.g. StackAdapt, Katz CTV…"
+             value="${name}" oninput="calculate()" />
+      <button class="remove-btn" onclick="removeCtvRow(${id})" title="Remove">×</button>
+    </div>
+    <div class="ctv-row-fields">
+      <div class="field">
+        <label>Reported Reach</label>
+        <input type="number" id="ctv-reach-${id}" placeholder="unique users" oninput="calculate()" />
+      </div>
+      <div class="field">
+        <label>Impressions</label>
+        <input type="number" id="ctv-imps-${id}" placeholder="total served" oninput="calculate()" />
+      </div>
+      <div class="field">
+        <label>Penetration Cap (%)</label>
+        <input type="number" id="ctv-pen-${id}" value="65" min="1" max="100" oninput="calculate()" />
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <div class="field-label-row">
+          <label>Audience Size (optional)</label>
+          <a class="lookup-link" onclick="openRowLookup('ctv-aud-${id}','${name || 'CTV'}')">⊕ Look up</a>
+        </div>
+        <input type="number" id="ctv-aud-${id}" placeholder="↳ uses global universe" oninput="calculate()" />
+      </div>
+    </div>`;
+  document.getElementById('ctvRows').appendChild(div);
+  document.getElementById(`ctv-name-${id}`).focus();
+  calculate();
+}
+
+function removeCtvRow(id) {
+  const idx = ctvRows.findIndex(r => r.id === id);
+  if (idx !== -1) ctvRows.splice(idx, 1);
+  document.getElementById(`ctv-row-${id}`)?.remove();
+  calculate();
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+const OVERLAP_SHRINK = { low: 0.96, medium: 0.93, high: 0.87 };
+
+function v(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const n = parseFloat(el.value);
+  return isNaN(n) ? null : n;
+}
+function fmt(n,d=0)    { if(n==null||isNaN(n)) return '—'; return n.toLocaleString('en-US',{maximumFractionDigits:d}); }
+function fmtPct(n,d=1) { if(n==null||isNaN(n)) return '—'; return (n*100).toFixed(d)+'%'; }
+
+// ── Main calculation ──────────────────────────────────────────
+function calculate() {
+  const universe   = v('universe');
+  const overlapKey = document.getElementById('overlap').value;
+  const campaign   = document.getElementById('campaignName').value.trim();
+  const geo        = document.getElementById('geoLabel').value.trim();
+  const rdate      = document.getElementById('reportDate').value.trim();
+  const penMeta    = (v('pen-meta') || 65) / 100;
+  const penYt      = (v('pen-yt')   || 75) / 100;
+
+  const platforms = [];
+  let anyAdjusted = false;
+  let multipleCTV = false;
+
+  // Meta
+  if (document.getElementById('active-meta').checked) {
+    const reported = v('reach-meta'), imps = v('imps-meta');
+    const audience = v('aud-meta') || universe;
+    if (reported) {
+      const cap = audience ? Math.round(audience * penMeta) : null;
+      const adjusted = cap ? Math.min(reported, cap) : reported;
+      const wasAdjusted = !!(cap && reported > cap);
+      if (wasAdjusted) anyAdjusted = true;
+      platforms.push({ key:'meta', name:'Meta', color:'#1877f2', reported, adjusted, imps, pen:penMeta, wasAdjusted, audience });
+    }
+  }
+
+  // YouTube
+  if (document.getElementById('active-yt').checked) {
+    const reported = v('reach-yt'), imps = v('imps-yt');
+    const audience = v('aud-yt') || universe;
+    if (reported) {
+      const cap = audience ? Math.round(audience * penYt) : null;
+      const adjusted = cap ? Math.min(reported, cap) : reported;
+      const wasAdjusted = !!(cap && reported > cap);
+      if (wasAdjusted) anyAdjusted = true;
+      platforms.push({ key:'yt', name:'YouTube', color:'#ff0000', reported, adjusted, imps, pen:penYt, wasAdjusted, audience });
+    }
+  }
+
+  // CTV rows
+  const activeCtvCount = ctvRows.filter(r => v(`ctv-reach-${r.id}`) != null).length;
+  if (activeCtvCount >= 2) multipleCTV = true;
+
+  for (const r of ctvRows) {
+    const reported = v(`ctv-reach-${r.id}`), imps = v(`ctv-imps-${r.id}`);
+    const name = document.getElementById(`ctv-name-${r.id}`)?.value.trim() || 'CTV';
+    const audience = v(`ctv-aud-${r.id}`) || universe;
+    const penCtv = (v(`ctv-pen-${r.id}`) || 65) / 100;
+    if (!reported) continue;
+    const cap = audience ? Math.round(audience * penCtv) : null;
+    const adjusted = cap ? Math.min(reported, cap) : reported;
+    const wasAdjusted = !!(cap && reported > cap);
+    if (wasAdjusted) anyAdjusted = true;
+    platforms.push({ key:`ctv-${r.id}`, name, color:r.color, reported, adjusted, imps, pen:penCtv, wasAdjusted, audience });
+  }
+
+  // Group platforms into audience pools (lines sharing the same audience size
+  // combine probabilistically; different audience pools combine via the
+  // cross-audience overlap estimate below)
+  const poolMap = new Map();
+  for (const pl of platforms) {
+    const key = pl.audience || 'none';
+    if (!poolMap.has(key)) poolMap.set(key, { audience: pl.audience, items: [] });
+    poolMap.get(key).items.push(pl);
+  }
+
+  const shrinkage = platforms.length >= 2 ? OVERLAP_SHRINK[overlapKey] : 1.0;
+  const pools = [];
+  for (const { audience, items } of poolMap.values()) {
+    if (!audience) { pools.push({ audience: null, reach: null, items }); continue; }
+    let probNotReached = 1;
+    for (const pl of items) probNotReached *= (1 - Math.min(pl.adjusted / audience, 1));
+    const frac  = (1 - probNotReached) * (items.length >= 2 ? shrinkage : 1.0);
+    pools.push({ audience, reach: Math.round(frac * audience), items });
+  }
+
+  const validPools   = pools.filter(p => p.reach != null).sort((a,b) => b.reach - a.reach);
+  const multiAudience = validPools.length >= 2;
+  const audOverlapPct = multiAudience ? (v('audOverlap') ?? 30) / 100 : 0;
+
+  document.getElementById('audOverlapWrap').style.display = multiAudience ? '' : 'none';
+
+  let combinedPersons = null, effectiveUniverse = null;
+  if (validPools.length === 1) {
+    combinedPersons   = validPools[0].reach;
+    effectiveUniverse = validPools[0].audience;
+  } else if (validPools.length >= 2) {
+    combinedPersons   = validPools[0].reach;
+    effectiveUniverse = validPools[0].audience;
+    for (let i = 1; i < validPools.length; i++) {
+      combinedPersons   += Math.round(validPools[i].reach * (1 - audOverlapPct));
+      effectiveUniverse += Math.round(validPools[i].audience * (1 - audOverlapPct));
+    }
+  }
+
+  const totalImps    = platforms.reduce((s,pl) => s + (pl.imps||0), 0);
+  const frequency    = (combinedPersons && totalImps) ? totalImps / combinedPersons : null;
+  const combinedFrac = (combinedPersons && effectiveUniverse) ? combinedPersons / effectiveUniverse : null;
+
+  renderReport({ campaign, geo, rdate, universe, platforms, combinedFrac, combinedPersons,
+                 totalImps, frequency, anyAdjusted, multipleCTV, overlapKey,
+                 multiAudience, audOverlapPct, effectiveUniverse });
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderReport({ campaign, geo, rdate, universe, platforms, combinedFrac,
+                        combinedPersons, totalImps, frequency, anyAdjusted, multipleCTV, overlapKey,
+                        multiAudience, audOverlapPct, effectiveUniverse }) {
+  const main = document.getElementById('mainPanel');
+  if (platforms.length === 0) {
+    main.innerHTML = '<div class="empty">Activate platforms and enter reach data to generate a report.</div>';
+    return;
+  }
+
+  const overlapLabel = { low:'Low', medium:'Medium', high:'High' }[overlapKey];
+  let html = '';
+
+  html += `<div class="report-header">
+    <h1>${campaign || 'Campaign Report'}</h1>
+    <div class="report-meta">
+      ${geo ? `<strong>${geo}</strong>` : ''}
+      ${geo && rdate ? ' &nbsp;·&nbsp; ' : ''}
+      ${rdate ? `As of ${rdate}` : ''}
+      ${universe ? ` &nbsp;·&nbsp; Universe: ${fmt(universe)} adults` : ''}
+    </div>
+  </div>`;
+
+  html += `<div class="summary-grid">
+    <div class="stat-card">
+      <div class="stat-label">Unduplicated Reach</div>
+      <div class="stat-value">${combinedFrac ? fmtPct(combinedFrac) : '—'}</div>
+      <div class="stat-sub">${combinedPersons ? fmt(combinedPersons)+' people' : 'Enter universe'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg. Frequency</div>
+      <div class="stat-value">${frequency ? frequency.toFixed(1) : '—'}</div>
+      <div class="stat-sub">exposures per person reached</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Impressions</div>
+      <div class="stat-value">${totalImps ? fmt(totalImps) : '—'}</div>
+      <div class="stat-sub">across ${platforms.length} platform${platforms.length!==1?'s':''}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Platforms Active</div>
+      <div class="stat-value">${platforms.length}</div>
+      <div class="stat-sub">${overlapLabel} overlap assumption</div>
+    </div>
+  </div>`;
+
+  if (anyAdjusted) {
+    html += `<div class="info-box amber">
+      <strong>Platform reach adjusted:</strong> One or more platforms reported reach exceeding
+      the theoretical maximum for that platform in this geography (universe × penetration cap).
+      Reported figures have been capped before combining. This is most common with YouTube,
+      which can overcount due to cross-device matching. See the Adjusted Reach column for details.
+    </div>`;
+  }
+
+  if (multipleCTV) {
+    html += `<div class="info-box amber">
+      <strong>Multiple CTV/DSP platforms active:</strong> These platforms compete for overlapping
+      inventory and often draw from the same data providers, so their audiences overlap more than
+      the standard deduplication formula assumes. Consider using the <strong>High</strong> overlap
+      assumption, or treat the combined CTV reach with additional caution.
+    </div>`;
+  }
+
+  if (multiAudience) {
+    html += `<div class="info-box amber">
+      <strong>Mixed audience types:</strong> Some lines are using a custom audience size that differs
+      from the global universe (e.g. an age demo vs. a matched voter list). These are treated as
+      separate addressable pools, combined within each pool first, then merged using your
+      <strong>${(audOverlapPct*100).toFixed(0)}% cross-audience overlap</strong> estimate. This is a
+      manual estimate &mdash; adjust it in the sidebar if you have a better sense of how much these
+      audiences actually overlap.
+    </div>`;
+  }
+
+  html += `<div class="card"><div class="card-head">Platform Breakdown</div><table>
+    <thead><tr>
+      <th>Platform</th><th>Reported Reach</th><th>Adjusted Reach</th>
+      <th>% of Universe</th><th>Impressions</th><th>Freq.</th>
+    </tr></thead><tbody>`;
+
+  for (const pl of platforms) {
+    const pct  = pl.audience ? pl.adjusted / pl.audience : null;
+    const bar  = pct ? Math.min(pct * 100, 100) : 0;
+    const freq = pl.imps && pl.adjusted ? pl.imps / pl.adjusted : null;
+    const badge = pl.wasAdjusted
+      ? `<span class="badge badge-warn">⚠ Capped at ${fmtPct(pl.pen)} penetration</span>`
+      : `<span class="badge badge-ok">✓ As reported</span>`;
+    const customAud = multiAudience && pl.audience !== universe
+      ? `<div class="adj-note" style="color:var(--text-muted)">own audience: ${fmt(pl.audience)}</div>` : '';
+    html += `<tr>
+      <td><div class="platform-pill"><span class="dot" style="background:${pl.color}"></span>${pl.name}</div></td>
+      <td>${fmt(pl.reported)}${pl.wasAdjusted?`<div class="adj-note">↓ reduced from ${fmt(pl.reported)}</div>`:''}</td>
+      <td>${fmt(pl.adjusted)}<br><span style="margin-top:3px;display:inline-block">${badge}</span>${customAud}</td>
+      <td><div class="bar-wrap">
+        <div class="bar"><div class="bar-fill" style="width:${bar}%;background:${pl.color}"></div></div>
+        <span>${pct ? fmtPct(pct) : '—'}</span>
+      </div></td>
+      <td>${pl.imps ? fmt(pl.imps) : '—'}</td>
+      <td>${freq ? freq.toFixed(1)+'×' : '—'}</td>
+    </tr>`;
+  }
+
+  if (platforms.length >= 2) {
+    html += `<tr class="total-row">
+      <td>Unduplicated Combined</td><td>—</td>
+      <td>${combinedPersons ? fmt(combinedPersons) : '—'}</td>
+      <td>${combinedFrac ? fmtPct(combinedFrac) : '—'}</td>
+      <td>${totalImps ? fmt(totalImps) : '—'}</td>
+      <td>${frequency ? frequency.toFixed(1)+'×' : '—'}</td>
+    </tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+
+  html += `<div class="info-box blue">
+    <strong>How these numbers are calculated:</strong>
+    Reported reach is first capped at universe × penetration cap to correct for platform overcounting.
+    Platforms are then combined probabilistically and adjusted downward by a correlation factor
+    to account for audience overlap (${overlapLabel} assumption).
+    All CTV and DSP lines share a single penetration cap. Adult population (18+) is sourced from
+    the U.S. Census Bureau ACS 5-Year Estimates (2022) when the district lookup is used.
+    Average frequency = total impressions ÷ unduplicated reach.
+    These are informed estimates; present figures as approximations.
+  </div>`;
+
+  main.innerHTML = html;
+}
+
+calculate();
+</script>
+</body>
+</html>

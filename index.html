@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>R&F Planning Tools</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .container { max-width: 680px; width: 100%; }
+  h1 {
+    font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+    color: #0f172a; margin-bottom: 6px;
+  }
+  .subtitle { font-size: 15px; color: #64748b; margin-bottom: 36px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 520px) { .cards { grid-template-columns: 1fr; } }
+  .card {
+    background: white; border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+    padding: 26px 24px 22px;
+    text-decoration: none; color: inherit;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,.10), 0 12px 32px rgba(0,0,0,.07);
+    transform: translateY(-2px);
+  }
+  .card-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .card-icon.blue { background: #dbeafe; }
+  .card-icon.purple { background: #ede9fe; }
+  .card-title { font-size: 16px; font-weight: 700; color: #0f172a; }
+  .card-desc { font-size: 13px; color: #64748b; line-height: 1.5; }
+  .card-tag {
+    display: inline-block; margin-top: 4px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+    padding: 3px 8px; border-radius: 4px;
+  }
+  .tag-blue { background: #dbeafe; color: #1d4ed8; }
+  .tag-purple { background: #ede9fe; color: #6d28d9; }
+  .footer { margin-top: 28px; text-align: center; font-size: 12px; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>R&F Planning Tools</h1>
+  <p class="subtitle">Reach &amp; frequency estimation for cross-platform digital campaigns.</p>
+
+  <div class="cards">
+    <a class="card" href="rf-calculator.html">
+      <div class="card-icon blue">📐</div>
+      <div class="card-title">Planning Calculator</div>
+      <div class="card-desc">
+        Estimate reach &amp; frequency before a campaign launches. Enter impressions
+        and target universe to project unduplicated reach across platforms.
+      </div>
+      <span class="card-tag tag-blue">Pre-campaign</span>
+    </a>
+
+    <a class="card" href="rf-midflight.html">
+      <div class="card-icon purple">📊</div>
+      <div class="card-title">Mid-Flight Report</div>
+      <div class="card-desc">
+        Combine platform-reported reach into one unduplicated total. Handles
+        mixed audience types, per-line audience sizes, and penetration caps.
+      </div>
+      <span class="card-tag tag-purple">Mid-flight</span>
+    </a>
+  </div>
+
+  <div class="footer">
+    Adult population data from U.S. Census Bureau ACS 5-Year Estimates (2022).
+  </div>
+</div>
+</body>
+</html>

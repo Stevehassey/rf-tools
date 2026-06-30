@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reach & Frequency Estimator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface2: #f9f9fb;
+    --border: #e2e2e7;
+    --accent: #1d4ed8;
+    --accent-light: #eff6ff;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --amber: #d97706;
+    --amber-light: #fffbeb;
+    --red: #dc2626;
+    --platform-meta: #1877f2;
+    --platform-yt: #ff0000;
+    --platform-dsp: #7c3aed;
+    --platform-ctv: #0891b2;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .page-header {
+    max-width: 900px;
+    margin: 0 auto 28px;
+  }
+  .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .page-header p { color: var(--text-muted); margin-top: 4px; font-size: 13px; }
+
+  .layout {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .full-width { grid-column: 1 / -1; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-header h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.2px; text-transform: uppercase; color: var(--text-muted); }
+  .card-header .dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .card-body { padding: 18px; }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  input[type="text"], input[type="number"], select {
+    width: 100%;
+    padding: 8px 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(29,78,216,0.1);
+  }
+
+  .radio-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .radio-group input[type="radio"] { display: none; }
+  .radio-group label:has(input:checked) {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Platform cards */
+  .platform-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: opacity 0.2s;
+  }
+  .platform-card.disabled { opacity: 0.45; }
+
+  .platform-header {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .platform-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;
+  }
+  .platform-label { font-weight: 600; font-size: 14px; flex: 1; }
+  .platform-sublabel { font-size: 12px; color: var(--text-muted); }
+
+  .toggle-switch {
+    position: relative; width: 36px; height: 20px; flex-shrink: 0;
+  }
+  .toggle-switch input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0; background: #d1d5db;
+    border-radius: 10px; cursor: pointer; transition: background 0.2s;
+  }
+  .toggle-track::after {
+    content: ''; position: absolute;
+    top: 3px; left: 3px;
+    width: 14px; height: 14px;
+    background: white; border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .toggle-switch input:checked + .toggle-track { background: var(--accent); }
+  .toggle-switch input:checked + .toggle-track::after { transform: translateX(16px); }
+
+  .platform-body {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .platform-body .field { margin-bottom: 0; }
+
+  .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* Results */
+  .results-card { background: var(--surface); }
+
+  .results-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .summary-stat {
+    padding: 20px 18px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+  .summary-stat:last-child { border-right: none; }
+  .summary-stat .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px; }
+  .summary-stat .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); }
+  .summary-stat .stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  .results-table { width: 100%; border-collapse: collapse; }
+  .results-table th {
+    padding: 10px 16px; text-align: left;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px;
+    color: var(--text-muted); font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .results-table th:not(:first-child) { text-align: right; }
+  .results-table td {
+    padding: 12px 16px; font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .results-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+  .results-table tr:last-child td { border-bottom: none; }
+  .results-table tr.total-row td {
+    font-weight: 700; background: var(--accent-light);
+    color: var(--accent);
+  }
+
+  .platform-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 600; font-size: 13px;
+  }
+  .platform-pill .pip {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .reach-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .reach-bar {
+    flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+    min-width: 60px;
+  }
+  .reach-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+  .assumptions-section {
+    padding: 16px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .assumptions-section summary {
+    cursor: pointer; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px;
+    list-style: none; display: flex; align-items: center; gap: 6px;
+    user-select: none;
+  }
+  .assumptions-section summary::before { content: '▶'; font-size: 9px; transition: transform 0.2s; }
+  .assumptions-section[open] summary::before { transform: rotate(90deg); }
+  .assumptions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .assumption-item { }
+  .assumption-item label {
+    display: block; font-size: 11px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.3px;
+    color: var(--text-muted); margin-bottom: 4px;
+  }
+  .assumption-item input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 13px;
+  }
+
+  .note {
+    font-size: 12px; color: var(--text-muted);
+    background: var(--amber-light);
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 14px 18px;
+  }
+  .note strong { color: var(--amber); }
+
+  .inactive-notice {
+    text-align: center; color: var(--text-muted);
+    font-size: 13px; padding: 20px;
+  }
+
+  /* Tooltip */
+  [data-tip] { position: relative; cursor: help; }
+  [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e; color: white;
+    font-size: 11px; font-weight: 400;
+    padding: 6px 10px; border-radius: 5px;
+    white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.15s;
+    z-index: 10;
+  }
+  [data-tip]:hover::after { opacity: 1; }
+
+  @media (max-width: 640px) {
+    .layout { grid-template-columns: 1fr; }
+    .full-width { grid-column: 1; }
+    .results-summary { grid-template-columns: 1fr; }
+    .summary-stat { border-right: none; border-bottom: 1px solid var(--border); }
+    .summary-stat:last-child { border-bottom: none; }
+    .platform-body { grid-template-columns: 1fr; }
+    .assumptions-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Reach &amp; Frequency Estimator</h1>
+  <p>Cross-platform estimates for digital ad campaigns. All outputs are informed estimates, not measured actuals.</p>
+</div>
+
+<div class="layout">
+
+  <!-- Campaign Setup -->
+  <div class="card">
+    <div class="card-header"><h2>Campaign Setup</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label>Geo / Campaign Label</label>
+        <input type="text" id="geoLabel" placeholder="e.g. CA-33 Congressional District" />
+      </div>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+          <label style="margin-bottom:0">Total Adult Population in Geo</label>
+          <a onclick="toggleCalcLookup()" id="calcLookupLink"
+             style="font-size:11px;color:var(--accent);cursor:pointer;font-weight:500;text-decoration:none;">⊕ Look up district</a>
+        </div>
+
+        <!-- Lookup panel -->
+        <div id="calcLookupPanel" style="display:none;margin-bottom:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+          <div style="padding:10px 12px;background:var(--accent-light);border-bottom:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:12px;font-weight:600;color:var(--accent)">Census District Lookup</span>
+            <span onclick="toggleCalcLookup()" style="font-size:16px;color:var(--accent);cursor:pointer;opacity:0.7;">×</span>
+          </div>
+          <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;">
+            <div class="field" style="margin-bottom:8px">
+              <label>Age Group</label>
+              <select id="calcAgeFilter" onchange="onCalcAgeFilterChange()">
+                <option value="18">Adults 18+</option>
+                <option value="25">Adults 25+</option>
+                <option value="30">Adults 30+</option>
+                <option value="35">Adults 35+</option>
+                <option value="45">Adults 45+</option>
+                <option value="55">Adults 55+</option>
+                <option value="65">Adults 65+</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>District Type</label>
+              <select id="calcGeoType" onchange="onCalcGeoTypeChange()">
+                <option value="state">Statewide</option>
+                <option value="cd">Congressional District</option>
+                <option value="sldu">State Senate District</option>
+                <option value="sldl">State Assembly / House District</option>
+                <option value="zip">ZIP Code List</option>
+              </select>
+            </div>
+            <div id="calcStateFieldWrap">
+              <div class="field" style="margin-bottom:0">
+                <label>State</label>
+                <select id="calcStateSelect" onchange="onCalcStateChange()">
+                  <option value="">— Select state —</option>
+                </select>
+              </div>
+            </div>
+            <div class="field" id="calcDistrictFieldWrap" style="display:none;margin-bottom:0">
+              <label id="calcDistrictLabel">District</label>
+              <select id="calcDistrictSelect" onchange="onCalcDistrictChange()">
+                <option value="">— Select district —</option>
+              </select>
+            </div>
+            <div class="field" id="calcZipFieldWrap" style="display:none;margin-bottom:0">
+              <label>ZIP Codes (one per line)</label>
+              <textarea id="calcZipInput" rows="6"
+                placeholder="10001&#10;10002&#10;10003"
+                oninput="onCalcZipInput()"
+                style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+            </div>
+            <div id="calcLookupStatus"></div>
+            <div id="calcLookupResult" style="display:none;padding:8px 10px;border-radius:6px;font-size:12px;background:var(--green-light);border:1px solid #bbf7d0;color:var(--green);font-weight:500;display:none;align-items:center;justify-content:space-between;gap:8px;">
+              <span id="calcLookupResultText"></span>
+              <button onclick="applyCalcLookup()" style="padding:4px 10px;border-radius:5px;border:none;background:var(--green);color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">Use this</button>
+            </div>
+          </div>
+        </div>
+
+        <input type="number" id="geoPop" placeholder="e.g. 550000" min="1000" oninput="calculate()" />
+        <div class="hint">Adults 18+ in the target geography (sourced from Census ACS when using lookup).</div>
+      </div>
+      <div class="field">
+        <label>Flight Length (weeks)</label>
+        <input type="number" id="flightWeeks" value="4" min="1" max="52" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Target Setup -->
+  <div class="card">
+    <div class="card-header"><h2>Audience Target</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label>Target Type</label>
+        <div class="radio-group" id="targetTypeGroup">
+          <label><input type="radio" name="targetType" value="general" checked> General Adults</label>
+          <label><input type="radio" name="targetType" value="demo"> Age / Demo</label>
+          <label><input type="radio" name="targetType" value="list"> Matched List</label>
+        </div>
+      </div>
+
+      <div class="field" id="demoPctField" style="display:none;">
+        <label>Target % of Adult Population</label>
+        <input type="number" id="demoPct" value="42" min="1" max="100" />
+        <div class="hint">e.g. 42 for Adults 45+ (approx. share of adult pop)</div>
+      </div>
+
+      <div id="listFields" style="display:none;">
+        <div class="field">
+          <label>Matched List Size (total file)</label>
+          <input type="number" id="listSize" placeholder="e.g. 50000" min="100" />
+          <div class="hint">Total records in your voter file / audience list for this geo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platforms -->
+  <div class="card full-width">
+    <div class="card-header"><h2>Platforms</h2></div>
+    <div class="card-body" style="display:flex; flex-direction:column; gap:12px;">
+
+      <!-- Meta -->
+      <div class="platform-card" id="card-meta">
+        <div class="platform-header">
+          <div class="platform-icon" style="background:var(--platform-meta)">f</div>
+          <div style="flex:1">
+            <div class="platform-label">Meta</div>
+            <div class="platform-sublabel">Facebook &amp; Instagram</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="active-meta" checked onchange="togglePlatform('meta')">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="platform-body" id="body-meta">
+          <div class="field">
+            <label>Planned Impressions</label>
+            <input type="number" id="imps-meta" placeholder="e.g. 500000" min="0" oninput="calculate()" />
+          </div>
+          <div class="field" id="matchrate-field-meta" style="display:none;">
+            <label data-tip="% of your list Meta can match to an account">Match Rate Override (%)</label>
+            <input type="number" id="matchrate-meta" placeholder="Default: 65" min="1" max="100" oninput="calculate()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- YouTube -->
+      <div class="platform-card" id="card-yt">
+        <div class="platform-header">
+          <div class="platform-icon" style="background:var(--platform-yt)">▶</div>
+          <div style="flex:1">
+            <div class="platform-label">YouTube</div>
+            <div class="platform-sublabel">Google / YouTube</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="active-yt" checked onchange="togglePlatform('yt')">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="platform-body" id="body-yt">
+          <div class="field">
+            <label>Planned Impressions</label>
+            <input type="number" id="imps-yt" placeholder="e.g. 250000" min="0" oninput="calculate()" />
+          </div>
+          <div class="field" id="matchrate-field-yt" style="display:none;">
+            <label data-tip="% of your list Google Customer Match can find">Match Rate Override (%)</label>
+            <input type="number" id="matchrate-yt" placeholder="Default: 55" min="1" max="100" oninput="calculate()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- DSP -->
+      <div class="platform-card" id="card-dsp">
+        <div class="platform-header">
+          <div class="platform-icon" style="background:var(--platform-dsp)">◈</div>
+          <div style="flex:1">
+            <div class="platform-label">DSP</div>
+            <div class="platform-sublabel">
+              <input type="text" id="dspName" placeholder="e.g. StackAdapt, Freewheel…"
+                style="border:none; background:transparent; font-size:12px; color:var(--text-muted);
+                       padding:0; width:180px; outline:none;"
+                oninput="calculate()" />
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="active-dsp" onchange="togglePlatform('dsp')">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="platform-body" id="body-dsp" style="display:none;">
+          <div class="field">
+            <label>Planned Impressions</label>
+            <input type="number" id="imps-dsp" placeholder="e.g. 300000" min="0" oninput="calculate()" />
+          </div>
+          <div class="field">
+            <label>Format</label>
+            <select id="format-dsp" onchange="calculate()">
+              <option value="display">Display / Native</option>
+              <option value="video">Pre-roll Video</option>
+              <option value="audio">Audio / Streaming</option>
+            </select>
+          </div>
+          <div class="field" id="matchrate-field-dsp" style="display:none;">
+            <label data-tip="% of list matched via DSP identity graph">Match Rate Override (%)</label>
+            <input type="number" id="matchrate-dsp" placeholder="Default: 72" min="1" max="100" oninput="calculate()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- CTV Direct -->
+      <div class="platform-card" id="card-ctv">
+        <div class="platform-header">
+          <div class="platform-icon" style="background:var(--platform-ctv)">📺</div>
+          <div style="flex:1">
+            <div class="platform-label">CTV Direct</div>
+            <div class="platform-sublabel">
+              <input type="text" id="ctvName" placeholder="e.g. Katz, FreeWheel CTV…"
+                style="border:none; background:transparent; font-size:12px; color:var(--text-muted);
+                       padding:0; width:180px; outline:none;"
+                oninput="calculate()" />
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="active-ctv" onchange="togglePlatform('ctv')">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="platform-body" id="body-ctv" style="display:none;">
+          <div class="field">
+            <label>Planned Impressions</label>
+            <input type="number" id="imps-ctv" placeholder="e.g. 200000" min="0" oninput="calculate()" />
+          </div>
+          <div class="field">
+            <label>Audience Segment Size in Geo</label>
+            <input type="number" id="segsize-ctv" placeholder="e.g. 45000" min="0" oninput="calculate()" />
+            <div class="hint">From data provider / partner (addressable HHs or persons)</div>
+          </div>
+          <div class="field" id="matchrate-field-ctv" style="display:none;">
+            <label>On-Target Rate Override (%)</label>
+            <input type="number" id="matchrate-ctv" placeholder="Default: 80" min="1" max="100" oninput="calculate()" />
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card full-width results-card" id="resultsCard">
+    <div class="card-header"><h2>Estimated Results</h2></div>
+
+    <div class="results-summary">
+      <div class="summary-stat">
+        <div class="stat-label">Unduplicated Reach</div>
+        <div class="stat-value" id="res-reach-pct">—</div>
+        <div class="stat-sub" id="res-reach-persons">—</div>
+      </div>
+      <div class="summary-stat">
+        <div class="stat-label">Avg. Frequency</div>
+        <div class="stat-value" id="res-freq">—</div>
+        <div class="stat-sub" id="res-freq-sub">exposures per reached person</div>
+      </div>
+      <div class="summary-stat">
+        <div class="stat-label">Total Eff. Impressions</div>
+        <div class="stat-value" id="res-effimps">—</div>
+        <div class="stat-sub" id="res-effimps-sub">on-target impressions</div>
+      </div>
+    </div>
+
+    <table class="results-table" id="resultsTable">
+      <thead>
+        <tr>
+          <th>Platform</th>
+          <th data-tip="People in geo who can be reached on this platform">Universe</th>
+          <th data-tip="Impressions landing on your target audience">Eff. Impressions</th>
+          <th>Est. Reach</th>
+          <th>Est. Freq.</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody">
+        <tr><td colspan="5" class="inactive-notice">Enter campaign details above to see estimates.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note" id="dedup-note" style="display:none;">
+      <strong>Deduplication note:</strong> Unduplicated reach applies a correlation discount across platforms — audiences on Meta, YouTube, DSP, and CTV overlap more than random chance would predict. The combined figure is lower than the sum of individual reaches.
+    </div>
+
+    <details class="assumptions-section">
+      <summary>Assumptions &amp; Override Defaults</summary>
+      <div class="assumptions-grid">
+
+        <div class="assumption-item">
+          <label>Meta — Platform Penetration (%)</label>
+          <input type="number" id="pen-meta" value="65" min="1" max="100" oninput="calculate()" />
+        </div>
+        <div class="assumption-item">
+          <label>Meta — On-Target Rate: Demo (%)</label>
+          <input type="number" id="otr-meta-demo" value="80" min="1" max="100" oninput="calculate()" />
+        </div>
+        <div class="assumption-item">
+          <label>YouTube — Platform Penetration (%)</label>
+          <input type="number" id="pen-yt" value="75" min="1" max="100" oninput="calculate()" />
+        </div>
+        <div class="assumption-item">
+          <label>YouTube — On-Target Rate: Demo (%)</label>
+          <input type="number" id="otr-yt-demo" value="72" min="1" max="100" oninput="calculate()" />
+        </div>
+        <div class="assumption-item">
+          <label>DSP — Platform Penetration (%)</label>
+          <input type="number" id="pen-dsp" value="60" min="1" max="100" oninput="calculate()" />
+        </div>
+        <div class="assumption-item">
+          <label>DSP — On-Target Rate: Demo (%)</label>
+          <input type="number" id="otr-dsp-demo" value="65" min="1" max="100" oninput="calculate()" />
+        </div>
+        <div class="assumption-item">
+          <label>Cross-Device Factor (DSP/CTV)</label>
+          <input type="number" id="crossdevice" value="1.6" min="1" max="3" step="0.1" oninput="calculate()" />
+          <div class="hint">Divide device reach by this to estimate person reach</div>
+        </div>
+        <div class="assumption-item">
+          <label>Platform Correlation / Overlap Factor</label>
+          <select id="overlapLevel" onchange="calculate()">
+            <option value="low">Low (more independent audiences)</option>
+            <option value="medium" selected>Medium (typical mix)</option>
+            <option value="high">High (similar audiences across platforms)</option>
+          </select>
+        </div>
+
+      </div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const PLATFORMS = ['meta', 'yt', 'dsp', 'ctv'];
+
+const COLORS = {
+  meta: '#1877f2',
+  yt:   '#ff0000',
+  dsp:  '#7c3aed',
+  ctv:  '#0891b2',
+};
+
+const LABELS = {
+  meta: 'Meta',
+  yt:   'YouTube',
+  dsp:  () => document.getElementById('dspName').value || 'DSP',
+  ctv:  () => document.getElementById('ctvName').value || 'CTV Direct',
+};
+
+// Default match rates by target type
+const DEFAULT_MATCH = {
+  meta: { general: 1, demo: 1, list: 0.65 },
+  yt:   { general: 1, demo: 1, list: 0.55 },
+  dsp:  { general: 1, demo: 1, list: 0.72 },
+  ctv:  { general: 1, demo: 1, list: 0.78 },
+};
+
+// Default on-target rates (what % of impressions hit the target)
+const DEFAULT_OTR = {
+  meta: { general: 0.92, demo: null /* from input */, list: 1.0 },
+  yt:   { general: 0.90, demo: null, list: 1.0 },
+  dsp:  { general: 0.85, demo: null, list: 1.0 },
+  ctv:  { general: 0.85, demo: 0.80, list: 0.85 },
+};
+
+// Overlap correlation — applied as a shrinkage to the probabilistic combined reach
+const OVERLAP = { low: 0.94, medium: 0.88, high: 0.80 };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function val(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const v = parseFloat(el.value);
+  return isNaN(v) ? null : v;
+}
+
+function fmt(n, digits = 0) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('en-US', { maximumFractionDigits: digits });
+}
+
+function fmtPct(n, digits = 1) {
+  if (n == null || isNaN(n)) return '—';
+  return (n * 100).toFixed(digits) + '%';
+}
+
+// Exponential reach curve: reach = universe * (1 - e^(-imps/universe))
+function reachCurve(impressions, universe) {
+  if (!universe || universe <= 0 || !impressions || impressions <= 0) return 0;
+  return universe * (1 - Math.exp(-impressions / universe));
+}
+
+// ─── Toggle platform ─────────────────────────────────────────────────────────
+
+function togglePlatform(p) {
+  const active = document.getElementById(`active-${p}`).checked;
+  const body   = document.getElementById(`body-${p}`);
+  const card   = document.getElementById(`card-${p}`);
+  if (body) body.style.display = active ? '' : 'none';
+  if (card) card.classList.toggle('disabled', !active);
+  calculate();
+}
+
+// ─── Target type switching ────────────────────────────────────────────────────
+
+document.querySelectorAll('input[name="targetType"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const t = r.value;
+    document.getElementById('demoPctField').style.display = t === 'demo' ? '' : 'none';
+    document.getElementById('listFields').style.display   = t === 'list' ? '' : 'none';
+
+    // Show/hide match rate fields per platform
+    PLATFORMS.forEach(p => {
+      const mf = document.getElementById(`matchrate-field-${p}`);
+      if (mf) mf.style.display = t === 'list' ? '' : 'none';
+    });
+
+    calculate();
+  });
+});
+
+// ─── Main calculation ─────────────────────────────────────────────────────────
+
+function calculate() {
+  const geoPop     = val('geoPop');
+  const targetType = document.querySelector('input[name="targetType"]:checked')?.value || 'general';
+  const demoPct    = val('demoPct') / 100;
+  const listSize   = val('listSize');
+  const overlapKey = document.getElementById('overlapLevel').value;
+  const crossDev   = val('crossdevice') || 1.6;
+
+  // Build target universe base
+  let targetBase = null;
+  if (targetType === 'general' && geoPop) targetBase = geoPop;
+  else if (targetType === 'demo' && geoPop && demoPct) targetBase = geoPop * demoPct;
+  else if (targetType === 'list' && listSize) targetBase = listSize;
+
+  const rows = [];
+  const activeReaches = []; // fraction of target universe reached per platform
+
+  for (const p of PLATFORMS) {
+    const active = document.getElementById(`active-${p}`)?.checked;
+    if (!active) continue;
+
+    const imps = val(`imps-${p}`);
+    if (!imps) continue;
+
+    // Penetration (for general/demo targets)
+    const pen = (val(`pen-${p}`) || 65) / 100;
+
+    // On-target rate
+    let otr;
+    if (targetType === 'list') {
+      const matchRateEl = val(`matchrate-${p}`);
+      otr = matchRateEl ? matchRateEl / 100 : DEFAULT_MATCH[p].list;
+    } else if (targetType === 'demo') {
+      const demoOtrEl = val(`otr-${p}-demo`);
+      otr = demoOtrEl ? demoOtrEl / 100 : 0.72;
+    } else {
+      otr = DEFAULT_OTR[p]?.general || 0.90;
+    }
+
+    // Universe on this platform
+    let universe;
+    if (targetType === 'list') {
+      // Matched list: universe = list size × match rate
+      const matchRate = val(`matchrate-${p}`) ? val(`matchrate-${p}`) / 100 : DEFAULT_MATCH[p].list;
+      universe = targetBase ? targetBase * matchRate : null;
+    } else if (p === 'ctv') {
+      // CTV: prefer provider-reported segment size
+      const seg = val('segsize-ctv');
+      universe = seg || (targetBase ? targetBase * pen : null);
+    } else {
+      universe = targetBase ? targetBase * pen : null;
+    }
+
+    // Effective impressions (on target)
+    const effImps = imps * otr;
+
+    // Apply cross-device deflation for DSP and CTV
+    let reachImps = effImps;
+    if (p === 'dsp' || p === 'ctv') reachImps = effImps / crossDev;
+
+    // Reach via exponential curve
+    const reachPersons = universe ? Math.min(reachCurve(reachImps, universe), universe) : null;
+    const reachFrac    = (universe && reachPersons) ? reachPersons / universe : null;
+    const freq         = (reachPersons && reachPersons > 0) ? effImps / reachPersons : null;
+
+    if (reachFrac != null) activeReaches.push({ p, reachFrac, universe, reachPersons, freq, effImps });
+
+    rows.push({ p, active: true, universe, effImps, reachPersons, freq });
+  }
+
+  // ── Unduplicated reach ──
+  // Probabilistic independence: P(not reached by any) = Π(1 - ri)
+  // Then apply correlation shrinkage
+  let probNotReached = 1;
+  for (const { reachFrac } of activeReaches) probNotReached *= (1 - reachFrac);
+  let combinedFrac = 1 - probNotReached;
+
+  // Apply overlap shrinkage (audiences are positively correlated, so true combined reach < independent estimate)
+  const shrinkage = activeReaches.length >= 2 ? OVERLAP[overlapKey] : 1.0;
+  combinedFrac *= shrinkage;
+
+  // Total effective impressions across active platforms
+  const totalEffImps = rows.filter(r => r.active).reduce((s, r) => s + (r.effImps || 0), 0);
+
+  // Combined reach in persons
+  const combinedPersons = targetBase ? combinedFrac * targetBase : null;
+  const combinedFreq    = (combinedPersons && combinedPersons > 0) ? totalEffImps / combinedPersons : null;
+
+  // ── Render ──
+  renderSummary(combinedFrac, combinedPersons, combinedFreq, totalEffImps);
+  renderTable(rows, combinedFrac, combinedPersons, combinedFreq, totalEffImps);
+
+  document.getElementById('dedup-note').style.display = activeReaches.length >= 2 ? '' : 'none';
+}
+
+function renderSummary(frac, persons, freq, effImps) {
+  document.getElementById('res-reach-pct').textContent     = frac   ? fmtPct(frac, 1) : '—';
+  document.getElementById('res-reach-persons').textContent = persons ? fmt(Math.round(persons)) + ' people' : 'Enter population & impressions';
+  document.getElementById('res-freq').textContent          = freq    ? freq.toFixed(1) : '—';
+  document.getElementById('res-effimps').textContent       = effImps ? fmt(Math.round(effImps)) : '—';
+}
+
+function renderTable(rows, combinedFrac, combinedPersons, combinedFreq, totalEffImps) {
+  const tbody = document.getElementById('resultsBody');
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="inactive-notice">Activate at least one platform and enter impressions.</td></tr>';
+    return;
+  }
+
+  let html = '';
+  for (const r of rows) {
+    if (!r.active) continue;
+    const label = typeof LABELS[r.p] === 'function' ? LABELS[r.p]() : LABELS[r.p];
+    const reachPct = (r.universe && r.reachPersons) ? r.reachPersons / r.universe : null;
+    const barPct   = reachPct ? Math.min(reachPct * 100, 100) : 0;
+
+    html += `<tr>
+      <td>
+        <div class="platform-pill">
+          <span class="pip" style="background:${COLORS[r.p]}"></span>
+          ${label}
+        </div>
+      </td>
+      <td>${r.universe ? fmt(Math.round(r.universe)) : '—'}</td>
+      <td>${r.effImps  ? fmt(Math.round(r.effImps))  : '—'}</td>
+      <td>
+        <div class="reach-bar-wrap">
+          <div class="reach-bar">
+            <div class="reach-bar-fill" style="width:${barPct}%;background:${COLORS[r.p]}"></div>
+          </div>
+          <span>${reachPct ? fmtPct(reachPct, 1) : '—'}</span>
+        </div>
+      </td>
+      <td>${r.freq ? r.freq.toFixed(1) + '×' : '—'}</td>
+    </tr>`;
+  }
+
+  if (rows.filter(r => r.active).length >= 2) {
+    html += `<tr class="total-row">
+      <td>Unduplicated Combined</td>
+      <td>—</td>
+      <td>${totalEffImps ? fmt(Math.round(totalEffImps)) : '—'}</td>
+      <td>${combinedFrac ? fmtPct(combinedFrac, 1) : '—'}</td>
+      <td>${combinedFreq ? combinedFreq.toFixed(1) + '×' : '—'}</td>
+    </tr>`;
+  }
+
+  tbody.innerHTML = html;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('geoPop').addEventListener('input', calculate);
+document.getElementById('demoPct').addEventListener('input', calculate);
+document.getElementById('listSize').addEventListener('input', calculate);
+document.getElementById('flightWeeks').addEventListener('input', calculate);
+document.getElementById('overlapLevel').addEventListener('change', calculate);
+document.querySelectorAll('.assumptions-section input, .assumptions-section select').forEach(el => {
+  el.addEventListener('input', calculate);
+});
+
+calculate();
+
+// ── Census Lookup (Planning Tool) ─────────────────────────────
+const CALC_STATES = [
+  ['Alabama','01','AL'],['Alaska','02','AK'],['Arizona','04','AZ'],['Arkansas','05','AR'],
+  ['California','06','CA'],['Colorado','08','CO'],['Connecticut','09','CT'],['Delaware','10','DE'],
+  ['District of Columbia','11','DC'],['Florida','12','FL'],['Georgia','13','GA'],['Hawaii','15','HI'],
+  ['Idaho','16','ID'],['Illinois','17','IL'],['Indiana','18','IN'],['Iowa','19','IA'],
+  ['Kansas','20','KS'],['Kentucky','21','KY'],['Louisiana','22','LA'],['Maine','23','ME'],
+  ['Maryland','24','MD'],['Massachusetts','25','MA'],['Michigan','26','MI'],['Minnesota','27','MN'],
+  ['Mississippi','28','MS'],['Missouri','29','MO'],['Montana','30','MT'],['Nebraska','31','NE'],
+  ['Nevada','32','NV'],['New Hampshire','33','NH'],['New Jersey','34','NJ'],['New Mexico','35','NM'],
+  ['New York','36','NY'],['North Carolina','37','NC'],['North Dakota','38','ND'],['Ohio','39','OH'],
+  ['Oklahoma','40','OK'],['Oregon','41','OR'],['Pennsylvania','42','PA'],['Rhode Island','44','RI'],
+  ['South Carolina','45','SC'],['South Dakota','46','SD'],['Tennessee','47','TN'],['Texas','48','TX'],
+  ['Utah','49','UT'],['Vermont','50','VT'],['Virginia','51','VA'],['Washington','53','WA'],
+  ['West Virginia','54','WV'],['Wisconsin','55','WI'],['Wyoming','56','WY']
+];
+
+const CALC_GEO_CONFIG = {
+  state: { param: 'state',                                       label: 'Statewide' },
+  cd:    { param: 'congressional district',                      label: 'Congressional District' },
+  sldu:  { param: 'state legislative district (upper chamber)',  label: 'State Senate District' },
+  sldl:  { param: 'state legislative district (lower chamber)',  label: 'State Assembly District' },
+};
+
+const CALC_MALE_AGE_VARS   = Array.from({length:19}, (_,i) => `B01001_${String(i+7).padStart(3,'0')}E`);
+const CALC_FEMALE_AGE_VARS = Array.from({length:19}, (_,i) => `B01001_${String(i+31).padStart(3,'0')}E`);
+const CALC_ADULT_VARS      = [...CALC_MALE_AGE_VARS, ...CALC_FEMALE_AGE_VARS].join(',');
+
+const CALC_AGE_CUTOFFS = { 18:0, 25:4, 30:5, 35:6, 45:8, 55:10, 65:13 };
+
+function calcSumAdults(male, female, minAge) {
+  const start = CALC_AGE_CUTOFFS[minAge] ?? 0;
+  let n = 0;
+  for (let i = start; i < 19; i++) n += (male[i]||0) + (female[i]||0);
+  return n;
+}
+
+function calcParseAgeGroups(row, offset) {
+  return {
+    male:   row.slice(offset,      offset+19).map(Number),
+    female: row.slice(offset+19,   offset+38).map(Number),
+  };
+}
+
+function getCalcAgeFilter() {
+  return parseInt(document.getElementById('calcAgeFilter').value) || 18;
+}
+
+function showCalcLookupResult() {
+  if (!calcPendingLookup) return;
+  const minAge = getCalcAgeFilter();
+  const adults = calcSumAdults(calcPendingLookup.male, calcPendingLookup.female, minAge);
+  const base   = calcPendingLookup.fullName.split(',')[0];
+  document.getElementById('calcLookupResultText').textContent =
+    `${base}: ${adults.toLocaleString()} adults ${minAge}+`;
+  document.getElementById('calcLookupResult').style.display = 'flex';
+  document.getElementById('calcLookupStatus').innerHTML = '';
+}
+
+function onCalcAgeFilterChange() {
+  showCalcLookupResult();
+}
+
+let calcLookupOpen = false;
+let calcPendingLookup = null;
+
+// Populate state dropdown
+(function initCalcStates() {
+  const sel = document.getElementById('calcStateSelect');
+  CALC_STATES.forEach(([name]) => {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  });
+})();
+
+function toggleCalcLookup() {
+  calcLookupOpen = !calcLookupOpen;
+  document.getElementById('calcLookupPanel').style.display = calcLookupOpen ? '' : 'none';
+  document.getElementById('calcLookupLink').textContent = calcLookupOpen ? '⊖ Close lookup' : '⊕ Look up district';
+}
+
+function onCalcGeoTypeChange() {
+  resetCalcDistricts();
+  const geoType = document.getElementById('calcGeoType').value;
+  const isZip   = geoType === 'zip';
+  document.getElementById('calcStateFieldWrap').style.display = isZip ? 'none' : '';
+  document.getElementById('calcZipFieldWrap').style.display   = isZip ? '' : 'none';
+  if (!isZip) {
+    const state = document.getElementById('calcStateSelect').value;
+    if (!state) return;
+    if (geoType === 'state') loadCalcStatewide(state);
+    else loadCalcDistricts(state);
+  }
+}
+
+function onCalcStateChange() {
+  resetCalcDistricts();
+  const state = document.getElementById('calcStateSelect').value;
+  if (!state) return;
+  const geoType = document.getElementById('calcGeoType').value;
+  if (geoType === 'state') loadCalcStatewide(state);
+  else loadCalcDistricts(state);
+}
+
+function resetCalcDistricts() {
+  document.getElementById('calcDistrictFieldWrap').style.display = 'none';
+  document.getElementById('calcDistrictSelect').innerHTML = '<option value="">— Select district —</option>';
+  document.getElementById('calcLookupResult').style.display = 'none';
+  document.getElementById('calcLookupStatus').innerHTML = '';
+  calcPendingLookup = null;
+  clearTimeout(calcZipDebounce);
+}
+
+// ── ZIP lookup ────────────────────────────────────────────────
+let calcZipDebounce = null;
+
+function onCalcZipInput() {
+  clearTimeout(calcZipDebounce);
+  document.getElementById('calcLookupResult').style.display = 'none';
+  document.getElementById('calcLookupStatus').innerHTML = '';
+  calcZipDebounce = setTimeout(fetchCalcZipPopulation, 600);
+}
+
+async function fetchCalcZipPopulation() {
+  const raw  = document.getElementById('calcZipInput').value;
+  const zips = [...new Set(
+    raw.split(/[\n,\s]+/).map(z => z.trim().replace(/\D/g,'')).filter(z => z.length === 5)
+  )];
+  if (zips.length === 0) return;
+
+  document.getElementById('calcLookupStatus').innerHTML =
+    `<div style="font-size:12px;color:var(--text-muted);padding:6px 0">Looking up ${zips.length} ZIP code${zips.length>1?'s':''}…</div>`;
+
+  const CHUNK = 50;
+  const chunks = [];
+  for (let i = 0; i < zips.length; i += CHUNK) chunks.push(zips.slice(i, i + CHUNK));
+
+  try {
+    const sumMale   = new Array(19).fill(0);
+    const sumFemale = new Array(19).fill(0);
+    let matched = 0;
+    for (const chunk of chunks) {
+      const params = new URLSearchParams({
+        get: CALC_ADULT_VARS,
+        for: `zip code tabulation area:${chunk.join(',')}`,
+        key: calcApiKey(),
+      });
+      const res  = await fetch(`https://api.census.gov/data/2022/acs/acs5?${params}`);
+      if (!res.ok) throw new Error(`Census API status ${res.status}`);
+      const data = await res.json();
+      for (const row of data.slice(1)) {
+        const { male, female } = calcParseAgeGroups(row, 0);
+        male.forEach((v,i)   => sumMale[i]   += v);
+        female.forEach((v,i) => sumFemale[i] += v);
+        matched++;
+      }
+    }
+
+    const missed = zips.length - matched;
+    calcPendingLookup = {
+      male:     sumMale,
+      female:   sumFemale,
+      fullName: `ZIP list (${matched} ZIP${matched>1?'s':''})`,
+    };
+    showCalcLookupResult();
+    if (missed > 0) {
+      document.getElementById('calcLookupResultText').textContent += ` · ${missed} not found`;
+    }
+  } catch(e) {
+    document.getElementById('calcLookupStatus').innerHTML =
+      `<div style="font-size:12px;color:#dc2626;padding:6px 0">Error: ${e.message}</div>`;
+  }
+}
+
+function calcApiKey() { return 'e054a1213d955edbfd2c110eb0211ca88cd2557c'; }
+
+async function loadCalcStatewide(stateName) {
+  const stateRow = CALC_STATES.find(s => s[0] === stateName);
+  if (!stateRow) return;
+  const [, fips] = stateRow;
+  document.getElementById('calcLookupStatus').innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:6px 0">Loading…</div>';
+  try {
+    const params = new URLSearchParams({ get: `NAME,${CALC_ADULT_VARS}`, for: `state:${fips}`, key: calcApiKey() });
+    const res  = await fetch(`https://api.census.gov/data/2022/acs/acs5?${params}`);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const data = await res.json();
+    const row  = data[1];
+    const { male, female } = calcParseAgeGroups(row, 1);
+    calcPendingLookup = { male, female, fullName: row[0] };
+    showCalcLookupResult();
+  } catch(e) {
+    document.getElementById('calcLookupStatus').innerHTML = `<div style="font-size:12px;color:#dc2626;padding:6px 0">Error: ${e.message}</div>`;
+  }
+}
+
+async function loadCalcDistricts(stateName) {
+  const stateRow = CALC_STATES.find(s => s[0] === stateName);
+  if (!stateRow) return;
+  const [, fips] = stateRow;
+  const geoType  = document.getElementById('calcGeoType').value;
+  const cfg      = CALC_GEO_CONFIG[geoType];
+  document.getElementById('calcDistrictLabel').textContent = cfg.label;
+  document.getElementById('calcLookupStatus').innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:6px 0">Loading ${cfg.label.toLowerCase()}s…</div>`;
+  try {
+    const params = new URLSearchParams({ get: `NAME,${CALC_ADULT_VARS}`, for: `${cfg.param}:*`, in: `state:${fips}`, key: calcApiKey() });
+    const res  = await fetch(`https://api.census.gov/data/2022/acs/acs5?${params}`);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const data = await res.json();
+    const rows = data.slice(1).map(row => {
+      const { male, female } = calcParseAgeGroups(row, 1);
+      return { code: row[row.length-1], male, female, name: row[0].split(',')[0].trim(), fullName: row[0] };
+    }).sort((a,b) => +a.code - +b.code);
+
+    const sel = document.getElementById('calcDistrictSelect');
+    sel.innerHTML = '<option value="">— Select district —</option>';
+    rows.forEach(r => {
+      const o = document.createElement('option');
+      o.value = JSON.stringify({ male: r.male, female: r.female, fullName: r.fullName });
+      o.textContent = geoType === 'cd' ? `District ${parseInt(r.code)}` : r.name;
+      sel.appendChild(o);
+    });
+
+    document.getElementById('calcDistrictFieldWrap').style.display = '';
+    document.getElementById('calcLookupStatus').innerHTML = '';
+  } catch(e) {
+    document.getElementById('calcLookupStatus').innerHTML = `<div style="font-size:12px;color:#dc2626;padding:6px 0">Error: ${e.message}</div>`;
+  }
+}
+
+function onCalcDistrictChange() {
+  const val = document.getElementById('calcDistrictSelect').value;
+  if (!val) { calcPendingLookup = null; document.getElementById('calcLookupResult').style.display = 'none'; return; }
+  const { male, female, fullName } = JSON.parse(val);
+  calcPendingLookup = { male, female, fullName };
+  showCalcLookupResult();
+}
+
+function applyCalcLookup() {
+  if (!calcPendingLookup) return;
+  const minAge = getCalcAgeFilter();
+  const adults = calcSumAdults(calcPendingLookup.male, calcPendingLookup.female, minAge);
+  document.getElementById('geoPop').value   = adults;
+  document.getElementById('geoLabel').value = calcPendingLookup.fullName;
+  toggleCalcLookup();
+  calculate();
+}
+</script>
+</body>
+</html>
