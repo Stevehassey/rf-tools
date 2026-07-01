@@ -275,8 +275,15 @@
   <div class="section-label">Campaign Info</div>
 
   <div class="field">
-    <label>Campaign / Client Name</label>
-    <input type="text" id="campaignName" placeholder="e.g. Smith for Senate" oninput="calculate()" />
+    <div class="field-label-row">
+      <label>Campaign / Client Name</label>
+      <a class="lookup-link" id="saveCampaignBtn" onclick="saveCampaign()" style="display:none">💾 Save</a>
+    </div>
+    <input type="text" id="campaignName" list="campaignList"
+           placeholder="e.g. Smith for Senate"
+           oninput="onCampaignInput()" onchange="onCampaignChange()" />
+    <datalist id="campaignList"></datalist>
+    <div id="campaignLoadedNote" style="display:none;font-size:11px;color:var(--green);margin-top:4px;font-weight:500"></div>
   </div>
 
   <div class="field">
@@ -1108,6 +1115,103 @@ function renderReport({ campaign, geo, rdate, universe, platforms, combinedFrac,
 }
 
 calculate();
+
+// ── Campaign persistence ──────────────────────────────────────
+const CAMPAIGNS_KEY = 'rf_saved_campaigns';
+
+function getSavedCampaigns() {
+  try { return JSON.parse(localStorage.getItem(CAMPAIGNS_KEY) || '{}'); } catch { return {}; }
+}
+
+function updateDatalist() {
+  const saved = getSavedCampaigns();
+  const dl = document.getElementById('campaignList');
+  dl.innerHTML = Object.keys(saved).sort()
+    .map(n => `<option value="${n.replace(/"/g,'&quot;')}"></option>`).join('');
+}
+
+function onCampaignInput() {
+  const name = document.getElementById('campaignName').value.trim();
+  document.getElementById('saveCampaignBtn').style.display = name ? '' : 'none';
+  document.getElementById('campaignLoadedNote').style.display = 'none';
+  calculate();
+}
+
+function onCampaignChange() {
+  const name = document.getElementById('campaignName').value.trim();
+  const saved = getSavedCampaigns();
+  if (saved[name]) loadCampaign(saved[name]);
+  calculate();
+}
+
+function saveCampaign() {
+  const name = document.getElementById('campaignName').value.trim();
+  if (!name) return;
+
+  // Snapshot current tactic rows
+  const tactics = tacticRows.map(r => ({
+    label:    r.label,
+    name:     document.getElementById(`tactic-name-${r.id}`)?.value.trim() || '',
+    pen:      v(`tactic-pen-${r.id}`) ?? 65,
+    audience: v(`tactic-aud-${r.id}`) ?? null,
+  }));
+
+  const data = {
+    universe:   v('universe'),
+    geoLabel:   document.getElementById('geoLabel').value.trim(),
+    metaActive: document.getElementById('active-meta').checked,
+    metaAud:    v('aud-meta'),
+    metaPen:    v('pen-meta') ?? 65,
+    ytActive:   document.getElementById('active-yt').checked,
+    ytAud:      v('aud-yt'),
+    ytPen:      v('pen-yt') ?? 75,
+    tactics,
+  };
+
+  const saved = getSavedCampaigns();
+  saved[name] = data;
+  localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(saved));
+  updateDatalist();
+
+  const note = document.getElementById('campaignLoadedNote');
+  note.textContent = '✓ Saved';
+  note.style.display = '';
+  setTimeout(() => { note.style.display = 'none'; }, 2000);
+}
+
+function loadCampaign(data) {
+  if (data.universe != null) document.getElementById('universe').value = data.universe;
+  if (data.geoLabel)         document.getElementById('geoLabel').value  = data.geoLabel;
+
+  document.getElementById('active-meta').checked = data.metaActive ?? true;
+  toggleFixed('meta');
+  if (data.metaAud != null) document.getElementById('aud-meta').value = data.metaAud;
+  if (data.metaPen != null) document.getElementById('pen-meta').value = data.metaPen;
+
+  document.getElementById('active-yt').checked = data.ytActive ?? true;
+  toggleFixed('yt');
+  if (data.ytAud != null) document.getElementById('aud-yt').value = data.ytAud;
+  if (data.ytPen != null) document.getElementById('pen-yt').value = data.ytPen;
+
+  // Rebuild tactic rows
+  document.getElementById('tacticRows').innerHTML = '';
+  tacticRows.length = 0;
+  tacticCounter = 0;
+  (data.tactics || []).forEach(t => {
+    addTacticRow(t.label || '', t.pen ?? 65);
+    const id = tacticCounter;
+    if (t.name) document.getElementById(`tactic-name-${id}`).value = t.name;
+    if (t.audience != null) document.getElementById(`tactic-aud-${id}`).value = t.audience;
+  });
+
+  const note = document.getElementById('campaignLoadedNote');
+  note.textContent = '✓ Settings loaded';
+  note.style.display = '';
+  setTimeout(() => { note.style.display = 'none'; }, 2500);
+}
+
+// Initialise datalist on page load
+updateDatalist();
 </script>
 </body>
 </html>
