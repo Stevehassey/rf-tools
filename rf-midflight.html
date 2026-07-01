@@ -431,6 +431,12 @@
     <span style="font-size:16px;line-height:1">+</span> Add CTV / DSP Platform
   </button>
 
+  <!-- Dynamic Other Tactic rows -->
+  <div id="otherRows"></div>
+  <button class="add-ctv-btn" onclick="addOtherRow()" style="margin-top:6px">
+    <span style="font-size:16px;line-height:1">+</span> Add Other Tactic
+  </button>
+
   <div class="section-label">Deduplication</div>
   <div class="field">
     <label>Audience Overlap Assumption</label>
@@ -796,9 +802,12 @@ function toggleFixed(p) {
 }
 
 // ── Dynamic CTV rows ──────────────────────────────────────────
-const CTV_COLORS = ['#0891b2','#7c3aed','#059669','#ea580c','#9333ea','#0369a1'];
+const CTV_COLORS   = ['#0891b2','#7c3aed','#059669','#ea580c','#9333ea','#0369a1'];
+const OTHER_COLORS = ['#f59e0b','#e11d48','#16a34a','#7c2d12','#7e22ce','#155e75'];
 let ctvCounter = 0;
 const ctvRows  = [];
+let otherCounter = 0;
+const otherRows  = [];
 
 function addCtvRow(name = '') {
   const id    = ++ctvCounter;
@@ -843,6 +852,52 @@ function removeCtvRow(id) {
   const idx = ctvRows.findIndex(r => r.id === id);
   if (idx !== -1) ctvRows.splice(idx, 1);
   document.getElementById(`ctv-row-${id}`)?.remove();
+  calculate();
+}
+
+function addOtherRow(name = '') {
+  const id    = ++otherCounter;
+  const color = OTHER_COLORS[(id - 1) % OTHER_COLORS.length];
+  otherRows.push({ id, color });
+  const div = document.createElement('div');
+  div.className = 'ctv-row'; div.id = `other-row-${id}`;
+  div.innerHTML = `
+    <div class="ctv-row-header">
+      <span class="pip" style="background:${color}"></span>
+      <input class="ctv-name-input" id="other-name-${id}" placeholder="e.g. Display, Audio, Email, Native…"
+             value="${name}" oninput="calculate()" />
+      <button class="remove-btn" onclick="removeOtherRow(${id})" title="Remove">×</button>
+    </div>
+    <div class="ctv-row-fields">
+      <div class="field">
+        <label>Reported Reach</label>
+        <input type="number" id="other-reach-${id}" placeholder="unique users" oninput="calculate()" />
+      </div>
+      <div class="field">
+        <label>Impressions</label>
+        <input type="number" id="other-imps-${id}" placeholder="total served" oninput="calculate()" />
+      </div>
+      <div class="field">
+        <label>Penetration Cap (%)</label>
+        <input type="number" id="other-pen-${id}" value="65" min="1" max="100" oninput="calculate()" />
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <div class="field-label-row">
+          <label>Audience Size (optional)</label>
+          <a class="lookup-link" onclick="openRowLookup('other-aud-${id}','${name || 'Other'}')">⊕ Look up</a>
+        </div>
+        <input type="number" id="other-aud-${id}" placeholder="↳ uses global universe" oninput="calculate()" />
+      </div>
+    </div>`;
+  document.getElementById('otherRows').appendChild(div);
+  document.getElementById(`other-name-${id}`).focus();
+  calculate();
+}
+
+function removeOtherRow(id) {
+  const idx = otherRows.findIndex(r => r.id === id);
+  if (idx !== -1) otherRows.splice(idx, 1);
+  document.getElementById(`other-row-${id}`)?.remove();
   calculate();
 }
 
@@ -913,6 +968,20 @@ function calculate() {
     const wasAdjusted = !!(cap && reported > cap);
     if (wasAdjusted) anyAdjusted = true;
     platforms.push({ key:`ctv-${r.id}`, name, color:r.color, reported, adjusted, imps, pen:penCtv, wasAdjusted, audience });
+  }
+
+  // Other Tactic rows
+  for (const r of otherRows) {
+    const reported = v(`other-reach-${r.id}`), imps = v(`other-imps-${r.id}`);
+    const name = document.getElementById(`other-name-${r.id}`)?.value.trim() || 'Other';
+    const audience = v(`other-aud-${r.id}`) || universe;
+    const pen = (v(`other-pen-${r.id}`) || 65) / 100;
+    if (!reported) continue;
+    const cap = audience ? Math.round(audience * pen) : null;
+    const adjusted = cap ? Math.min(reported, cap) : reported;
+    const wasAdjusted = !!(cap && reported > cap);
+    if (wasAdjusted) anyAdjusted = true;
+    platforms.push({ key:`other-${r.id}`, name, color:r.color, reported, adjusted, imps, pen, wasAdjusted, audience });
   }
 
   // Group platforms into audience pools (lines sharing the same audience size
