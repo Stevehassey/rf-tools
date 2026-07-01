@@ -264,6 +264,7 @@
     .summary-grid { grid-template-columns: repeat(2,1fr); }
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="app">
@@ -1116,18 +1117,33 @@ function renderReport({ campaign, geo, rdate, universe, platforms, combinedFrac,
 
 calculate();
 
-// ── Campaign persistence ──────────────────────────────────────
+// ── Campaign persistence (Supabase + localStorage fallback) ──────
 const CAMPAIGNS_KEY = 'rf_saved_campaigns';
+const SB_URL  = 'https://qyhzcaidkcrbvfyvazou.supabase.co';
+const SB_KEY  = 'sb_publishable_CFpFebJTaOMlDXWBaBJgfA_MxPn1LHK';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-function getSavedCampaigns() {
-  try { return JSON.parse(localStorage.getItem(CAMPAIGNS_KEY) || '{}'); } catch { return {}; }
+// localStorage helpers (cache + offline fallback)
+function localGet()          { try { return JSON.parse(localStorage.getItem(CAMPAIGNS_KEY) || '{}'); } catch { return {}; } }
+function localSet(name, data){ const c = localGet(); c[name] = data; localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(c)); }
+
+function showNote(msg, duration = 2000) {
+  const el = document.getElementById('campaignLoadedNote');
+  el.textContent = msg; el.style.display = '';
+  setTimeout(() => { el.style.display = 'none'; }, duration);
 }
 
-function updateDatalist() {
-  const saved = getSavedCampaigns();
+async function updateDatalist() {
+  let names = [];
+  try {
+    const { data, error } = await sb.from('campaigns').select('name').order('name');
+    if (error) throw error;
+    names = (data || []).map(r => r.name);
+  } catch {
+    names = Object.keys(localGet()).sort();
+  }
   const dl = document.getElementById('campaignList');
-  dl.innerHTML = Object.keys(saved).sort()
-    .map(n => `<option value="${n.replace(/"/g,'&quot;')}"></option>`).join('');
+  dl.innerHTML = names.map(n => `<option value="${n.replace(/"/g,'&quot;')}"></option>`).join('');
 }
 
 function onCampaignInput() {
@@ -1137,18 +1153,24 @@ function onCampaignInput() {
   calculate();
 }
 
-function onCampaignChange() {
+async function onCampaignChange() {
   const name = document.getElementById('campaignName').value.trim();
-  const saved = getSavedCampaigns();
-  if (saved[name]) loadCampaign(saved[name]);
+  if (!name) return;
+  try {
+    const { data, error } = await sb.from('campaigns').select('data').eq('name', name).maybeSingle();
+    if (error) throw error;
+    if (data) { loadCampaign(data.data); return; }
+  } catch {
+    const cache = localGet();
+    if (cache[name]) { loadCampaign(cache[name]); return; }
+  }
   calculate();
 }
 
-function saveCampaign() {
+async function saveCampaign() {
   const name = document.getElementById('campaignName').value.trim();
   if (!name) return;
 
-  // Snapshot current tactic rows
   const tactics = tacticRows.map(r => ({
     label:    r.label,
     name:     document.getElementById(`tactic-name-${r.id}`)?.value.trim() || '',
@@ -1168,15 +1190,17 @@ function saveCampaign() {
     tactics,
   };
 
-  const saved = getSavedCampaigns();
-  saved[name] = data;
-  localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(saved));
-  updateDatalist();
+  localSet(name, data); // always cache locally
 
-  const note = document.getElementById('campaignLoadedNote');
-  note.textContent = '✓ Saved';
-  note.style.display = '';
-  setTimeout(() => { note.style.display = 'none'; }, 2000);
+  try {
+    const { error } = await sb.from('campaigns')
+      .upsert({ name, data, updated_at: new Date().toISOString() }, { onConflict: 'name' });
+    if (error) throw error;
+    showNote('✓ Saved');
+  } catch {
+    showNote('✓ Saved locally (offline)');
+  }
+  updateDatalist();
 }
 
 function loadCampaign(data) {
@@ -1193,7 +1217,6 @@ function loadCampaign(data) {
   if (data.ytAud != null) document.getElementById('aud-yt').value = data.ytAud;
   if (data.ytPen != null) document.getElementById('pen-yt').value = data.ytPen;
 
-  // Rebuild tactic rows
   document.getElementById('tacticRows').innerHTML = '';
   tacticRows.length = 0;
   tacticCounter = 0;
@@ -1204,10 +1227,8 @@ function loadCampaign(data) {
     if (t.audience != null) document.getElementById(`tactic-aud-${id}`).value = t.audience;
   });
 
-  const note = document.getElementById('campaignLoadedNote');
-  note.textContent = '✓ Settings loaded';
-  note.style.display = '';
-  setTimeout(() => { note.style.display = 'none'; }, 2500);
+  showNote('✓ Settings loaded', 2500);
+  calculate();
 }
 
 // Initialise datalist on page load
