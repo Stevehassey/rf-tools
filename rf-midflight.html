@@ -360,7 +360,7 @@
     </div>
 
     <input type="number" id="universe" placeholder="e.g. 720000" oninput="calculate()" />
-    <div class="hint">Adults 18+ in the target geography</div>
+    <div class="hint" id="universeHint">Adults 18+ in the target geography</div>
   </div>
 
   <div class="field">
@@ -793,6 +793,8 @@ function showLookupResult() {
 
 function onAgeFilterChange() {
   showLookupResult();
+  const minAge = getAgeFilter();
+  document.getElementById('universeHint').textContent = `Adults ${minAge}+ in the target geography`;
 }
 
 function applyLookup() {
@@ -1181,6 +1183,7 @@ async function saveCampaign() {
   const data = {
     universe:   v('universe'),
     geoLabel:   document.getElementById('geoLabel').value.trim(),
+    ageFilter:  document.getElementById('ageFilter').value,
     metaActive: document.getElementById('active-meta').checked,
     metaAud:    v('aud-meta'),
     metaPen:    v('pen-meta') ?? 65,
@@ -1206,6 +1209,7 @@ async function saveCampaign() {
 function loadCampaign(data) {
   if (data.universe != null) document.getElementById('universe').value = data.universe;
   if (data.geoLabel)         document.getElementById('geoLabel').value  = data.geoLabel;
+  if (data.ageFilter)        { document.getElementById('ageFilter').value = data.ageFilter; onAgeFilterChange(); }
 
   document.getElementById('active-meta').checked = data.metaActive ?? true;
   toggleFixed('meta');
