@@ -180,15 +180,18 @@
   .ctv-row-fields .field { margin-bottom: 0; }
   .ctv-row-fields label { font-size: 11px; }
 
-  .add-ctv-btn {
-    width: 100%; padding: 8px 12px; margin-top: 4px;
+  .add-tactic-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;
+  }
+  .add-tactic-btn {
+    padding: 7px 10px;
     border: 1.5px dashed var(--border); border-radius: 8px;
     background: transparent; color: var(--text-muted);
-    font-size: 13px; font-weight: 500; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
     transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
-  .add-ctv-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .add-tactic-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
   .caps-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 
@@ -425,17 +428,22 @@
     </div>
   </div>
 
-  <!-- Dynamic CTV/DSP rows -->
-  <div id="ctvRows"></div>
-  <button class="add-ctv-btn" onclick="addCtvRow()">
-    <span style="font-size:16px;line-height:1">+</span> Add CTV / DSP Platform
-  </button>
-
-  <!-- Dynamic Other Tactic rows -->
-  <div id="otherRows"></div>
-  <button class="add-ctv-btn" onclick="addOtherRow()" style="margin-top:6px">
-    <span style="font-size:16px;line-height:1">+</span> Add Other Tactic
-  </button>
+  <!-- Dynamic tactic rows -->
+  <div id="tacticRows"></div>
+  <div class="add-tactic-grid">
+    <button class="add-tactic-btn" onclick="addTacticRow('CTV/DSP', 65)">
+      <span>📺</span> CTV / DSP
+    </button>
+    <button class="add-tactic-btn" onclick="addTacticRow('Audio', 55)">
+      <span>🔊</span> Audio
+    </button>
+    <button class="add-tactic-btn" onclick="addTacticRow('Display', 65)">
+      <span>🖥</span> Display
+    </button>
+    <button class="add-tactic-btn" onclick="addTacticRow('', 65)">
+      <span>+</span> Other
+    </button>
+  </div>
 
   <div class="section-label">Deduplication</div>
   <div class="field">
@@ -802,102 +810,54 @@ function toggleFixed(p) {
 }
 
 // ── Dynamic CTV rows ──────────────────────────────────────────
-const CTV_COLORS   = ['#0891b2','#7c3aed','#059669','#ea580c','#9333ea','#0369a1'];
-const OTHER_COLORS = ['#f59e0b','#e11d48','#16a34a','#7c2d12','#7e22ce','#155e75'];
-let ctvCounter = 0;
-const ctvRows  = [];
-let otherCounter = 0;
-const otherRows  = [];
+const TACTIC_COLORS = ['#0891b2','#7c3aed','#059669','#ea580c','#f59e0b','#e11d48','#16a34a','#9333ea','#0369a1','#7c2d12'];
+let tacticCounter = 0;
+const tacticRows  = [];
 
-function addCtvRow(name = '') {
-  const id    = ++ctvCounter;
-  const color = CTV_COLORS[(id - 1) % CTV_COLORS.length];
-  ctvRows.push({ id, color });
+function addTacticRow(label = '', defaultPen = 65) {
+  const id    = ++tacticCounter;
+  const color = TACTIC_COLORS[(id - 1) % TACTIC_COLORS.length];
+  const placeholder = label ? `e.g. ${label === 'CTV/DSP' ? 'StackAdapt, Hulu, Freewheel…' : label === 'Audio' ? 'Spotify, Pandora, iHeart…' : label === 'Display' ? 'Display network…' : 'Tactic name…'}` : 'Tactic name…';
+  tacticRows.push({ id, color, label });
   const div = document.createElement('div');
-  div.className = 'ctv-row'; div.id = `ctv-row-${id}`;
+  div.className = 'ctv-row'; div.id = `tactic-row-${id}`;
   div.innerHTML = `
     <div class="ctv-row-header">
       <span class="pip" style="background:${color}"></span>
-      <input class="ctv-name-input" id="ctv-name-${id}" placeholder="e.g. StackAdapt, Katz CTV…"
-             value="${name}" oninput="calculate()" />
-      <button class="remove-btn" onclick="removeCtvRow(${id})" title="Remove">×</button>
+      <input class="ctv-name-input" id="tactic-name-${id}" placeholder="${placeholder}"
+             value="${label}" oninput="calculate()" />
+      <button class="remove-btn" onclick="removeTacticRow(${id})" title="Remove">×</button>
     </div>
     <div class="ctv-row-fields">
       <div class="field">
         <label>Reported Reach</label>
-        <input type="number" id="ctv-reach-${id}" placeholder="unique users" oninput="calculate()" />
+        <input type="number" id="tactic-reach-${id}" placeholder="unique users" oninput="calculate()" />
       </div>
       <div class="field">
         <label>Impressions</label>
-        <input type="number" id="ctv-imps-${id}" placeholder="total served" oninput="calculate()" />
+        <input type="number" id="tactic-imps-${id}" placeholder="total served" oninput="calculate()" />
       </div>
       <div class="field">
         <label>Penetration Cap (%)</label>
-        <input type="number" id="ctv-pen-${id}" value="65" min="1" max="100" oninput="calculate()" />
+        <input type="number" id="tactic-pen-${id}" value="${defaultPen}" min="1" max="100" oninput="calculate()" />
       </div>
       <div class="field" style="grid-column:1/-1">
         <div class="field-label-row">
           <label>Audience Size (optional)</label>
-          <a class="lookup-link" onclick="openRowLookup('ctv-aud-${id}','${name || 'CTV'}')">⊕ Look up</a>
+          <a class="lookup-link" onclick="openRowLookup('tactic-aud-${id}','${label || 'tactic'}')">⊕ Look up</a>
         </div>
-        <input type="number" id="ctv-aud-${id}" placeholder="↳ uses global universe" oninput="calculate()" />
+        <input type="number" id="tactic-aud-${id}" placeholder="↳ uses global universe" oninput="calculate()" />
       </div>
     </div>`;
-  document.getElementById('ctvRows').appendChild(div);
-  document.getElementById(`ctv-name-${id}`).focus();
+  document.getElementById('tacticRows').appendChild(div);
+  document.getElementById(`tactic-name-${id}`).focus();
   calculate();
 }
 
-function removeCtvRow(id) {
-  const idx = ctvRows.findIndex(r => r.id === id);
-  if (idx !== -1) ctvRows.splice(idx, 1);
-  document.getElementById(`ctv-row-${id}`)?.remove();
-  calculate();
-}
-
-function addOtherRow(name = '') {
-  const id    = ++otherCounter;
-  const color = OTHER_COLORS[(id - 1) % OTHER_COLORS.length];
-  otherRows.push({ id, color });
-  const div = document.createElement('div');
-  div.className = 'ctv-row'; div.id = `other-row-${id}`;
-  div.innerHTML = `
-    <div class="ctv-row-header">
-      <span class="pip" style="background:${color}"></span>
-      <input class="ctv-name-input" id="other-name-${id}" placeholder="e.g. Display, Audio, Email, Native…"
-             value="${name}" oninput="calculate()" />
-      <button class="remove-btn" onclick="removeOtherRow(${id})" title="Remove">×</button>
-    </div>
-    <div class="ctv-row-fields">
-      <div class="field">
-        <label>Reported Reach</label>
-        <input type="number" id="other-reach-${id}" placeholder="unique users" oninput="calculate()" />
-      </div>
-      <div class="field">
-        <label>Impressions</label>
-        <input type="number" id="other-imps-${id}" placeholder="total served" oninput="calculate()" />
-      </div>
-      <div class="field">
-        <label>Penetration Cap (%)</label>
-        <input type="number" id="other-pen-${id}" value="65" min="1" max="100" oninput="calculate()" />
-      </div>
-      <div class="field" style="grid-column:1/-1">
-        <div class="field-label-row">
-          <label>Audience Size (optional)</label>
-          <a class="lookup-link" onclick="openRowLookup('other-aud-${id}','${name || 'Other'}')">⊕ Look up</a>
-        </div>
-        <input type="number" id="other-aud-${id}" placeholder="↳ uses global universe" oninput="calculate()" />
-      </div>
-    </div>`;
-  document.getElementById('otherRows').appendChild(div);
-  document.getElementById(`other-name-${id}`).focus();
-  calculate();
-}
-
-function removeOtherRow(id) {
-  const idx = otherRows.findIndex(r => r.id === id);
-  if (idx !== -1) otherRows.splice(idx, 1);
-  document.getElementById(`other-row-${id}`)?.remove();
+function removeTacticRow(id) {
+  const idx = tacticRows.findIndex(r => r.id === id);
+  if (idx !== -1) tacticRows.splice(idx, 1);
+  document.getElementById(`tactic-row-${id}`)?.remove();
   calculate();
 }
 
@@ -953,35 +913,21 @@ function calculate() {
     }
   }
 
-  // CTV rows
-  const activeCtvCount = ctvRows.filter(r => v(`ctv-reach-${r.id}`) != null).length;
+  // Tactic rows (CTV/DSP, Audio, Display, Other)
+  const activeCtvCount = tacticRows.filter(r => v(`tactic-reach-${r.id}`) != null && r.label === 'CTV/DSP').length;
   if (activeCtvCount >= 2) multipleCTV = true;
 
-  for (const r of ctvRows) {
-    const reported = v(`ctv-reach-${r.id}`), imps = v(`ctv-imps-${r.id}`);
-    const name = document.getElementById(`ctv-name-${r.id}`)?.value.trim() || 'CTV';
-    const audience = v(`ctv-aud-${r.id}`) || universe;
-    const penCtv = (v(`ctv-pen-${r.id}`) || 65) / 100;
+  for (const r of tacticRows) {
+    const reported = v(`tactic-reach-${r.id}`), imps = v(`tactic-imps-${r.id}`);
+    const name     = document.getElementById(`tactic-name-${r.id}`)?.value.trim() || r.label || 'Tactic';
+    const audience = v(`tactic-aud-${r.id}`) || universe;
+    const pen      = (v(`tactic-pen-${r.id}`) || 65) / 100;
     if (!reported) continue;
-    const cap = audience ? Math.round(audience * penCtv) : null;
-    const adjusted = cap ? Math.min(reported, cap) : reported;
+    const cap        = audience ? Math.round(audience * pen) : null;
+    const adjusted   = cap ? Math.min(reported, cap) : reported;
     const wasAdjusted = !!(cap && reported > cap);
     if (wasAdjusted) anyAdjusted = true;
-    platforms.push({ key:`ctv-${r.id}`, name, color:r.color, reported, adjusted, imps, pen:penCtv, wasAdjusted, audience });
-  }
-
-  // Other Tactic rows
-  for (const r of otherRows) {
-    const reported = v(`other-reach-${r.id}`), imps = v(`other-imps-${r.id}`);
-    const name = document.getElementById(`other-name-${r.id}`)?.value.trim() || 'Other';
-    const audience = v(`other-aud-${r.id}`) || universe;
-    const pen = (v(`other-pen-${r.id}`) || 65) / 100;
-    if (!reported) continue;
-    const cap = audience ? Math.round(audience * pen) : null;
-    const adjusted = cap ? Math.min(reported, cap) : reported;
-    const wasAdjusted = !!(cap && reported > cap);
-    if (wasAdjusted) anyAdjusted = true;
-    platforms.push({ key:`other-${r.id}`, name, color:r.color, reported, adjusted, imps, pen, wasAdjusted, audience });
+    platforms.push({ key:`tactic-${r.id}`, name, color:r.color, reported, adjusted, imps, pen, wasAdjusted, audience });
   }
 
   // Group platforms into audience pools (lines sharing the same audience size
